@@ -9,10 +9,14 @@ modified: 2026-02-08
 Splits a monolithic rules file (like `AGENTS.md` or `CLAUDE.md`) into modular individual rule files. Supports both heading-based (offline) and AI-assisted splitting strategies.
 
 ```bash
-pnpm decompose
+pnpm decompose [path] [-o output-dir]
 # or
-pnpm dev decompose
+pnpm dev decompose [path] [-o output-dir]
 ```
+
+The optional `[path]` argument can be a file to decompose or a directory to scan for known rule files. When a file is provided, detection and file picking are skipped. When a directory is provided, it scans that directory instead of CWD.
+
+The optional `-o`/`--output` flag specifies the output directory, skipping the interactive directory prompt.
 
 ## Pipeline Steps
 
@@ -21,16 +25,20 @@ pnpm dev decompose
 Scans CWD for known single-file rule files:
 `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `CONVENTIONS.md`, `.github/copilot-instructions.md`, `.junie/guidelines.md`
 
+**Skipped** when a file `[path]` argument is provided. When a directory is given, it scans that directory instead.
+
 ### 2. Pick Input File
 
 Select which file to decompose.
 
+**Skipped** when a file `[path]` argument is provided.
+
 ### 3. Choose Split Strategy
 
-| Strategy | How it works | When to use |
-|----------|-------------|-------------|
-| **Heading-based** | Splits on `##` (H2) boundaries. H3+ stays with parent H2. No LLM needed. | Well-structured documents with clear H2 sections |
-| **AI-assisted** | LLM analyzes the document and proposes logical rule groupings. Returns heading references (metadata-only), content is always copied from the source. | Poorly structured documents, or when you want smarter grouping |
+| Strategy          | How it works                                                                                                                                         | When to use                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **Heading-based** | Splits on `##` (H2) boundaries. H3+ stays with parent H2. No LLM needed.                                                                             | Well-structured documents with clear H2 sections               |
+| **AI-assisted**   | LLM analyzes the document and proposes logical rule groupings. Returns heading references (metadata-only), content is always copied from the source. | Poorly structured documents, or when you want smarter grouping |
 
 ### 4. Select Sections
 
@@ -61,13 +69,25 @@ Choose which tool format to write in. This determines file extension and whether
 
 Defaults to the tool's standard rules directory (e.g., `.cursor/rules/` for Cursor).
 
-### 8. Generate Frontmatter
+**Skipped** when `--output`/`-o` is provided.
+
+### 8. Extract Glob Annotations and Generate Frontmatter
+
+Each split section is checked for a `> [!globs]` callout (injected by compose). If found:
+
+- The glob patterns are extracted and the callout is removed from the body
+- `alwaysApply` is set to `false` and `globs` is included in frontmatter
+- `unquoteGlobs()` reverses the `quoteGlobs()` step so Cursor sees native unquoted `globs:` values
+
+If no callout is found, `alwaysApply` defaults to `true`.
 
 For tools that support frontmatter (currently only Cursor with `.mdc`):
-- **`alwaysApply: true`** is always included
-- **`description`** is extracted from the first prose line of the section (truncated to 120 chars). If the section starts with a table or list, description is omitted.
 
-Tools without frontmatter support get plain markdown.
+- **`alwaysApply`** — `false` if a `> [!globs]` callout was found, otherwise `true`
+- **`description`** is extracted from the first prose line of the section (truncated to 120 chars). If the section starts with a table or list, description is omitted.
+- **`globs`** — included when extracted from a `> [!globs]` callout
+
+Tools without frontmatter support get plain markdown (glob annotations are still removed from the body).
 
 ### 9. Format Output
 
@@ -113,9 +133,10 @@ Uses OpenRouter API with a metadata-only response format for token efficiency:
 
 ## Key Modules
 
-| Module | File | Purpose |
-|--------|------|---------|
-| Splitter | `scripts/decompose/splitter.ts` | `splitByHeadings()` — H2-boundary splitting, `stripHeadingNumber()` — removes `N. ` prefixes |
-| Matcher | `scripts/decompose/matcher.ts` | `parseHeadingMap()`, `reconstructFromHeadings()` — AI metadata → content |
-| Decompose helpers | `scripts/decompose/index.ts` | `extractProseDescription()`, `buildRawContent()` — frontmatter generation |
-| System Prompt | `scripts/decompose/prompt.md` | Instructions for AI-assisted decomposition |
+| Module            | File                            | Purpose                                                                                                                  |
+| ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Splitter          | `scripts/decompose/splitter.ts` | `splitByHeadings()` — H2-boundary splitting, `stripHeadingNumber()` — removes `N. ` prefixes                             |
+| Matcher           | `scripts/decompose/matcher.ts`  | `parseHeadingMap()`, `reconstructFromHeadings()` — AI metadata → content                                                 |
+| Decompose helpers | `scripts/decompose/index.ts`    | `extractProseDescription()`, `buildRawContent()` — frontmatter generation (with glob/alwaysApply support)                |
+| Glob round-trip   | `scripts/shared/formats.ts`     | `extractGlobAnnotation()` — extracts `> [!globs]` callouts, `unquoteGlobs()` — reverses `quoteGlobs()` for Cursor output |
+| System Prompt     | `scripts/decompose/prompt.md`   | Instructions for AI-assisted decomposition                                                                               |
