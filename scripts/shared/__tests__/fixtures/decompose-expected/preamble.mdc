@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+description: >-
+  These rules define conventions for AI coding agents working in this project.
+  Rules are stored in `{{RULES_DIR}}` as `{{R
+---
+# Sample Project Rules
+
+These rules define conventions for AI coding agents working in this project. Rules are stored in `{{RULES_DIR}}` as `{{RULES_EXT}}` files.

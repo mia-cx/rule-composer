@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+## Technology Preferences
+
+| Category  | Choice      | Notes               |
+| --------- | ----------- | ------------------- |
+| Framework | SvelteKit   | Svelte 5 with runes |
+| Styling   | TailwindCSS | Utility-first       |
+| Database  | SQLite      | Via Drizzle ORM     |
+| Testing   | Vitest      | Unit tests early    |
+| State     | nanostores  | Framework-agnostic  |
+
+Use `{{RULES_DIR}}` for project-specific rules and `{{SKILLS_DIR}}` for reusable workflows.

@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+description: >-
+  Use consistent patterns across the codebase. {{TOOL_NAME}} should follow these
+  conventions strictly.
+---
+## Coding Conventions
+
+Use consistent patterns across the codebase. {{TOOL_NAME}} should follow these conventions strictly.
+
+### Naming
+
+- Use kebab-case for file names.
+- Use camelCase for variables and functions.
+- Prefix event handlers with `handle`: `handleClick`, `handleSubmit`.
+
+### Style
+
+- Early returns and guard clauses first.
+- `const` arrow functions over `function` declarations.
+- No inline styles — use Tailwind utility classes.
+
+### Imports
+
+Always include all required imports. Group them:
+
+1. Node built-ins
+2. External packages
+3. Internal modules

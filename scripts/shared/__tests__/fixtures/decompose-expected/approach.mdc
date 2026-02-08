@@ -1,0 +1,13 @@
+---
+alwaysApply: true
+description: >-
+  Plan first, confirm, then implement. When a task involves multiple steps or
+  trade-offs, outline the plan before writing
+---
+## Approach
+
+Plan first, confirm, then implement. When a task involves multiple steps or trade-offs, outline the plan before writing code.
+
+- Read relevant files before making changes.
+- State your plan concisely — what you'll change and why.
+- For trivial changes, skip the ceremony and just do it.

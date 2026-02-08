@@ -1,0 +1,11 @@
+---
+alwaysApply: true
+description: Be concise. Don't restate what the user already knows.
+---
+## Communication
+
+Be concise. Don't restate what the user already knows.
+
+- Front-load answers: important information first, caveats after.
+- If you don't know something, say so.
+- Explain trade-offs when multiple approaches exist.
