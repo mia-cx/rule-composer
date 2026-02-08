@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+## Communication
+
+- Be concise. Don't restate what the user already knows.
+- Explain trade-offs when multiple approaches exist, then pick one unless the user should decide.
+- If you don't know something, say so.
+- When showing code changes, focus on what changed and why.

@@ -11,12 +11,13 @@ Only move to Agent mode once the plan is agreed upon. For trivial single-file ch
 1. Read the relevant files first. Do not guess at structure or APIs.
 2. State your plan concisely — what you'll change and why.
 3. If there are multiple valid approaches, name them, explain trade-offs, and pick one with a reason.
+4. **Copy/move files via CLI** — Use `cp`, `mv`, `rsync` instead of reading and rewriting file contents. Don't waste tokens reproducing what the filesystem can handle.
 
 ### When Debugging
 
 1. **Reproduce first.** Confirm the actual error or behavior before proposing a fix.
 2. **Simple causes first.** Check for typos, wrong file paths, missing imports, stale caches, incorrect variable names, and version mismatches before investigating complex causes. Most real-world bugs are simple oversights.
-3. **Track what you've tried.** Before each attempt, list prior failed approaches and *why* they failed. Never retry an approach that already failed unless circumstances changed.
+3. **Track what you've tried.** Before each attempt, list prior failed approaches and _why_ they failed. Never retry an approach that already failed unless circumstances changed.
 4. **Two-strike rule.** After two failed attempts, stop and:
    - Summarize: what you know, what you've tried, what the results were.
    - Re-examine assumptions — at least one is likely wrong.
@@ -47,7 +48,7 @@ When working on a Dependabot or security-related branch:
 
 ## Workspace Conventions
 
-The user works in **pnpm monorepos** orchestrated by **Turborepo**.
+The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and packages are **git submodules** — each lives in its own repository (namespaced under the same GitHub org) and is added to the monorepo via `git submodule add`. Only the default template scaffolding (config, docs, etc.) lives directly in the monorepo repo.
 
 ### Standard Monorepo Shape
 
@@ -62,6 +63,7 @@ packages/
 ```
 
 **Notes:**
+
 - The `docs/` app uses Quartz (Preact-based) and requires Node >=22 — do not apply Svelte conventions to it.
 - Content in `docs/` is authored in Obsidian and published via Quartz. Use GitHub-flavored markdown links (`[text](path)`) instead of wikilinks for cross-compatibility. Frontmatter: `title`, `authors`, `created`, `modified`.
 - For Cloudflare SvelteKit apps, use the `PRIVATE_` prefix for server-only environment variables (`env.privatePrefix: 'PRIVATE_'` in svelte.config).
@@ -77,18 +79,20 @@ When the user is creating a new monorepo, walk them through these steps:
 
 ### Adding an App
 
-When adding an app to an existing monorepo:
+When adding an app or package to an existing monorepo:
 
-1. Fetch the relevant docs first (see Reference Links).
-2. Suggest the user runs the official create CLI rather than hand-writing configs a starter template provides. Guide them on which CLI to use:
+1. **Create a separate repo** under the same GitHub org (e.g., `@mia-cx/new-app`).
+2. **Add it as a git submodule**: `git submodule add <repo-url> apps/<app-name>` (or `packages/<pkg-name>`).
+3. **Scaffold using the official CLI** rather than hand-writing configs. Guide on which CLI to use:
    - SvelteKit: `pnpm create svelte@latest`
    - Astro: `pnpm create astro@latest`
    - Next.js: `pnpm create next-app@latest`
    - Quartz: `pnpx quartz create`
    - Cloudflare: `pnpm dlx wrangler init`
-3. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
+4. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
+5. Fetch the relevant docs first (see Reference Links).
 
-### Cursor Rules and Skills
+## Rules and Skills
 
 Actively build and expand `.cursor/rules/` and `.cursor/skills/` as you work. These persist context for future conversations.
 
@@ -98,16 +102,18 @@ Actively build and expand `.cursor/rules/` and `.cursor/skills/` as you work. Th
 
 **Proactive creation:** When you discover an architectural decision, debug a non-obvious gotcha, or build a repeatable workflow — write a rule or skill for it immediately. Don't ask.
 
+**Promote to global when reusable.** If a rule or skill you created isn't project-specific, suggest the user move it to `~/.cursor/rules/` or `~/.cursor/skills/` so it applies across all projects.
+
 ## Technology Preferences
 
 ### Frontend
 
-| Preference     | Detail                                                            |
-| -------------- | ----------------------------------------------------------------- |
-| Primary        | **SvelteKit** (Svelte 5, Vite). Default unless stated otherwise.  |
-| Exploring      | Astro, React, Next.js — open to learning their patterns.          |
-| Components     | **shadcn-svelte** (built on Bits-UI). TailwindCSS for styling.    |
-| State (global) | **nanostores** — lightweight, framework-agnostic.                 |
+| Preference     | Detail                                                                    |
+| -------------- | ------------------------------------------------------------------------- |
+| Primary        | **SvelteKit** (Svelte 5, Vite). Default unless stated otherwise.          |
+| Exploring      | Astro, React, Next.js — open to learning their patterns.                  |
+| Components     | **shadcn-svelte** (built on Bits-UI). TailwindCSS for styling.            |
+| State (global) | **nanostores** — lightweight, framework-agnostic.                         |
 | State (local)  | **Svelte 5 runes** (`$state`, `$derived`, `$effect`). No Svelte 4 stores. |
 
 ### Backend & Data
