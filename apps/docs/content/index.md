@@ -1,10 +1,10 @@
 ---
-title: agent-rule-composer
+title: rule-composer
 created: 2026-02-08
 modified: 2026-02-08
 ---
 
-# agent-rule-composer
+# rule-composer
 
 A CLI tool for composing, converting, and optimizing AI coding agent rules across 10 supported tools. Write rules once using `{{placeholders}}`, then generate tool-specific variants for Cursor, Claude Code, GitHub Copilot, Windsurf, Cline, Zed, JetBrains, Amazon Q, Gemini, and Aider.
 
@@ -18,10 +18,11 @@ See [Tool Registry](tool-registry) for the full list of placeholders and their p
 
 ### Two Commands
 
-| Command | What it does |
-|---------|-------------|
-| [compose](compose) | Merges modular rules into a single document for a target tool, with optional LLM optimization |
-| [decompose](decompose) | Splits a monolithic rules file into modular individual rules |
+| Command                | What it does                                                                                  |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| [compose](compose)     | Merges modular rules into a single document for a target tool, with optional LLM optimization |
+| [decompose](decompose) | Splits a monolithic rules file into modular individual rules                                  |
+| [sync](sync)           | Push/pull/diff repo rules and skills with global config (e.g. ~/.cursor/)                     |
 
 ## Architecture
 
@@ -50,9 +51,9 @@ scripts/
 
 ### Data Flow
 
-**Compose**: Scan CWD → discover rule sources → interactive selection → merge rules → resolve placeholders → optional LLM optimization → write output.
+**Compose**: `[path]` or scan CWD → discover rule sources → interactive selection → reorder (optional) → merge rules → resolve placeholders → numbering (optional) → optional LLM optimization → format → write output + variants.
 
-**Decompose**: Detect monolithic rule files → pick input → split (heading-based or AI-assisted) → select sections → pick output format → generate frontmatter → write individual files.
+**Decompose**: `[path]` or detect monolithic rule files → pick input → split (heading-based or AI-assisted) → select sections → numbered prefixes (optional) → detect tool-specific paths → pick output format → generate frontmatter → format → write individual files.
 
 ## Quick Start
 
@@ -64,8 +65,8 @@ pnpm install
 pnpm dev
 
 # Or run a specific command
-pnpm compose
-pnpm decompose
+pnpm compose [path]
+pnpm decompose [path]
 
 # Run tests
 pnpm test
@@ -73,27 +74,28 @@ pnpm test
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
+| Variable             | Required         | Description                                                                  |
+| -------------------- | ---------------- | ---------------------------------------------------------------------------- |
 | `OPENROUTER_API_KEY` | For LLM features | API key for OpenRouter (used for optimization and AI-assisted decomposition) |
 
 Copy `.env.example` to `.env` and fill in your key if you want to use LLM features. The tool works fully without it — LLM optimization is always optional.
 
 ## Key Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `@clack/prompts` | Beautiful interactive CLI prompts |
-| `gray-matter` | Parse and stringify YAML frontmatter |
-| `zod` | Runtime schema validation for API responses and LLM output |
-| `picocolors` | Terminal color output |
-| `tsx` | TypeScript execution for development |
-| `tsup` | Build for distribution |
-| `vitest` | Test runner |
+| Package          | Purpose                                                                                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| `@clack/prompts` | Beautiful interactive CLI prompts                                                                           |
+| `gray-matter`    | Parse and stringify YAML frontmatter (see [globs gotcha](tool-registry#frontmatter-parsing-globs-and-yaml)) |
+| `zod`            | Runtime schema validation for API responses and LLM output                                                  |
+| `picocolors`     | Terminal color output                                                                                       |
+| `tsx`            | TypeScript execution for development                                                                        |
+| `tsup`           | Build for distribution                                                                                      |
+| `vitest`         | Test runner                                                                                                 |
 
 ## Further Reading
 
 - [Compose Command](compose) — Detailed compose workflow
 - [Decompose Command](decompose) — Detailed decompose workflow
-- [Tool Registry](tool-registry) — Supported tools, placeholders, and configuration
-- [Testing](testing/) — 132-test suite documentation
+- [Sync Command](sync) — Push/pull/diff rules and skills with global config
+- [Tool Registry](tool-registry) — Supported tools, placeholders, configuration, and coding-tools layout
+- [Testing](testing/) — 191-test suite documentation
