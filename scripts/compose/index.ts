@@ -42,17 +42,81 @@ export const runCompose = async (): Promise<void> => {
   }
 
   // 3. Select individual rules via tree
-  const selectedRules = await selectRules(sources);
+  let selectedRules = await selectRules(sources);
   if (selectedRules.length === 0) {
     p.log.error("No rules selected.");
     return;
   }
 
+  // 3.5. Optional reorder
+  if (selectedRules.length > 1) {
+    p.log.info("Current section order:");
+    selectedRules.forEach((rule, i) => {
+      p.log.message(`  ${color.dim(`${i + 1}.`)} ${rule.name}`);
+    });
+
+    const wantsReorder = await p.confirm({
+      message: "Reorder sections?",
+      initialValue: false,
+    });
+
+    if (p.isCancel(wantsReorder)) {
+      p.cancel("Operation cancelled.");
+      process.exit(0);
+    }
+
+    if (wantsReorder) {
+      const defaultOrder = selectedRules.map((_, i) => i + 1).join(",");
+      const orderInput = await p.text({
+        message: "Enter new order (comma-separated numbers)",
+        placeholder: defaultOrder,
+        initialValue: defaultOrder,
+        validate: (value) => {
+          const indices = value.split(",").map((s) => parseInt(s.trim(), 10));
+          if (indices.length !== selectedRules.length) {
+            return `Expected ${selectedRules.length} numbers, got ${indices.length}`;
+          }
+          if (indices.some((n) => isNaN(n) || n < 1 || n > selectedRules.length)) {
+            return `Numbers must be between 1 and ${selectedRules.length}`;
+          }
+          const unique = new Set(indices);
+          if (unique.size !== indices.length) {
+            return "Each number must appear exactly once";
+          }
+          return undefined;
+        },
+      });
+
+      if (p.isCancel(orderInput)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+
+      const indices = (orderInput as string)
+        .split(",")
+        .map((s) => parseInt(s.trim(), 10) - 1);
+      selectedRules = indices.map((i) => selectedRules[i]!);
+    }
+  }
+
   // 4. Pick target tool for placeholders
   const targetTool = await pickTargetTool(detected);
 
+  // 4.5. Numbering toggle
+  const wantsNumbering = await p.confirm({
+    message: "Add numbered prefixes to section headings?",
+    initialValue: true,
+  });
+
+  if (p.isCancel(wantsNumbering)) {
+    p.cancel("Operation cancelled.");
+    process.exit(0);
+  }
+
   // 5. Compose
-  const { content, placeholderCount } = compose(selectedRules, targetTool);
+  const { content, placeholderCount } = compose(selectedRules, targetTool, {
+    numbered: !!wantsNumbering,
+  });
   const tokens = estimateTokens(content);
   const lines = content.split("\n").length;
 

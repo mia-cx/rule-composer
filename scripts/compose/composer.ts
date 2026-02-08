@@ -11,10 +11,26 @@ const stripFrontmatter = (rule: RuleFile): string => {
   return rule.body;
 };
 
+/** Add numbered prefixes to H2 headings that aren't already numbered */
+export const addSectionNumbers = (content: string): string => {
+  let counter = 0;
+  return content.replace(/^## (?!\d+\.\s)(.+)$/gm, (_match, heading) => {
+    counter++;
+    return `## ${counter}. ${heading}`;
+  });
+};
+
+/** Options for compose behavior */
+export interface ComposeOptions {
+  /** Add numbered prefixes (1. 2. 3.) to H2 section headings */
+  numbered?: boolean;
+}
+
 /** Compose selected rules into a single markdown document */
 export const compose = (
   selected: RuleFile[],
   targetTool: ToolId,
+  options?: ComposeOptions,
 ): { content: string; placeholderCount: number } => {
   let placeholderCount = 0;
   const sections: string[] = [];
@@ -32,7 +48,12 @@ export const compose = (
     sections.push(body);
   }
 
-  const content = sections.join("\n\n");
+  let content = sections.join("\n\n");
+
+  if (options?.numbered) {
+    content = addSectionNumbers(content);
+  }
+
   return { content, placeholderCount };
 };
 

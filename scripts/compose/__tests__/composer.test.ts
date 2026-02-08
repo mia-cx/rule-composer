@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compose, estimateTokens } from "../composer.js";
+import { compose, estimateTokens, addSectionNumbers } from "../composer.js";
 import type { RuleFile } from "../../shared/types.js";
 
 const makeRule = (overrides: Partial<RuleFile> = {}): RuleFile => ({
@@ -90,6 +90,65 @@ describe("compose", () => {
 
     const { content } = compose(rules, "cursor");
     expect(content).toBe("Rule A\n\nRule B");
+  });
+
+  it("adds numbered prefixes when numbered option is true", () => {
+    const rules = [
+      makeRule({
+        body: "## Approach\n\nPlan first.",
+        rawContent: "## Approach\n\nPlan first.",
+      }),
+      makeRule({
+        body: "## Coding\n\nUse returns.",
+        rawContent: "## Coding\n\nUse returns.",
+      }),
+    ];
+
+    const { content } = compose(rules, "cursor", { numbered: true });
+    expect(content).toContain("## 1. Approach");
+    expect(content).toContain("## 2. Coding");
+  });
+
+  it("does not add numbers when numbered option is false", () => {
+    const rules = [
+      makeRule({
+        body: "## Approach\n\nPlan first.",
+        rawContent: "## Approach\n\nPlan first.",
+      }),
+    ];
+
+    const { content } = compose(rules, "cursor", { numbered: false });
+    expect(content).toContain("## Approach");
+    expect(content).not.toContain("## 1.");
+  });
+});
+
+describe("addSectionNumbers", () => {
+  it("adds sequential numbers to H2 headings", () => {
+    const input = "## Approach\n\nContent.\n\n## Coding\n\nMore content.";
+    const result = addSectionNumbers(input);
+    expect(result).toContain("## 1. Approach");
+    expect(result).toContain("## 2. Coding");
+  });
+
+  it("skips already-numbered headings", () => {
+    const input = "## 1. Approach\n\nContent.\n\n## Testing\n\nMore.";
+    const result = addSectionNumbers(input);
+    expect(result).toContain("## 1. Approach");
+    expect(result).toContain("## 1. Testing");
+  });
+
+  it("does not touch H3+ headings", () => {
+    const input = "## Approach\n\n### Details\n\nContent.";
+    const result = addSectionNumbers(input);
+    expect(result).toContain("## 1. Approach");
+    expect(result).toContain("### Details");
+    expect(result).not.toContain("### 1. Details");
+  });
+
+  it("handles content with no headings", () => {
+    const input = "Just plain text.\n\nMore text.";
+    expect(addSectionNumbers(input)).toBe(input);
   });
 });
 

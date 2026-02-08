@@ -40,9 +40,17 @@ A custom tree prompt shows all discovered rules organized by source. You can exp
 │   [x] my-project-rule     Project-specific conventions
 ```
 
+### 3.5. Reorder Sections (Optional)
+
+When more than one rule is selected, the tool displays the current section order and asks if you want to reorder. If yes, enter a comma-separated list of new positions (e.g., `3,1,2,4`). The input is validated for correct count, valid indices, and no duplicates.
+
 ### 4. Pick Target Tool
 
 Select which tool to resolve placeholders for. This determines how `{{RULES_DIR}}`, `{{TOOL_NAME}}`, etc. are replaced.
+
+### 4.5. Numbering Toggle
+
+Choose whether to add numbered prefixes to H2 section headings in the output (e.g., `## 1. Approach`, `## 2. Coding Conventions`). Defaults to yes. Already-numbered headings are skipped. Only H2 headings are numbered — H3+ are left untouched.
 
 ### 5. Compose
 
@@ -52,6 +60,7 @@ Rules are merged in order:
 3. Resolve placeholders for the target tool (see [Tool Registry](tool-registry))
 4. Lines with empty-value placeholders are removed entirely
 5. Join sections with double newlines
+6. If numbering is enabled, add `N. ` prefixes to H2 headings via `addSectionNumbers()`
 
 Output shows line count, token estimate, and placeholder count.
 
@@ -88,7 +97,7 @@ Writes to all selected targets, then regenerates the `coding-tools/` directory w
 
 | Module | File | Purpose |
 |--------|------|---------|
-| Composer | `scripts/compose/composer.ts` | `compose()` — merges rules, `estimateTokens()` — rough token count |
+| Composer | `scripts/compose/composer.ts` | `compose()` — merges rules, `addSectionNumbers()` — numbered headings, `estimateTokens()` — rough token count |
 | Variants | `scripts/compose/variants.ts` | `generateVariants()` — produces `coding-tools/<tool>/` directories |
 | System Prompt | `scripts/compose/prompt.md` | Instructions for LLM optimization |
 

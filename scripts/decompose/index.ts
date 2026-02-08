@@ -14,6 +14,8 @@ import {
   TOOL_REGISTRY,
   writeAsDirectory,
   formatMarkdown,
+  detectSourceTool,
+  replaceWithPlaceholders,
 } from "../shared/formats.js";
 import type { ToolId, RuleFile } from "../shared/types.js";
 import type { LLMMessage } from "../shared/openrouter.js";
@@ -339,7 +341,64 @@ export const runDecompose = async (): Promise<void> => {
     return;
   }
 
-  // 5. Pick output tool format
+  // 4.5. Numbered file prefix toggle
+  const wantsNumbered = await p.confirm({
+    message: "Add numbered prefixes to filenames? (e.g. 01-approach.mdc)",
+    initialValue: true,
+  });
+
+  if (p.isCancel(wantsNumbered)) {
+    p.cancel("Operation cancelled.");
+    process.exit(0);
+  }
+
+  const numbered = !!wantsNumbered;
+
+  // 5. Detect tool-specific paths and offer placeholder replacement
+  const combinedContent = splits.map((s) => s.content).join("\n");
+  const detectedTool = detectSourceTool(combinedContent);
+
+  if (detectedTool) {
+    const toolName = TOOL_REGISTRY[detectedTool]?.name ?? detectedTool;
+    const { replacements } = replaceWithPlaceholders(
+      combinedContent,
+      detectedTool,
+    );
+
+    if (replacements.length > 0) {
+      p.log.info(
+        `Detected ${color.cyan(toolName)}-specific paths in the content:`,
+      );
+      for (const r of replacements) {
+        p.log.message(
+          `  ${color.dim(r.value)} → ${color.green(`{{${r.variable}}}`)} ${color.dim(`(${r.count}×`)}`,
+        );
+      }
+
+      const shouldReplace = await p.confirm({
+        message: `Replace with {{PLACEHOLDER}} syntax for cross-tool compatibility?`,
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldReplace)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+
+      if (shouldReplace) {
+        splits = splits.map((split) => {
+          const { content } = replaceWithPlaceholders(
+            split.content,
+            detectedTool,
+          );
+          return { ...split, content };
+        });
+        p.log.success("Replaced tool-specific paths with placeholders.");
+      }
+    }
+  }
+
+  // 6. Pick output tool format
   const toolChoice = await p.select({
     message: "Output tool format",
     options: TOOL_IDS.map((id) => ({
@@ -356,7 +415,7 @@ export const runDecompose = async (): Promise<void> => {
 
   const toolId = toolChoice as ToolId;
 
-  // 6. Pick output directory
+  // 7. Pick output directory
   const defaultDir = TOOL_REGISTRY[toolId]?.directories[0] ?? "rules/";
 
   const outputDir = await p.text({
@@ -370,7 +429,7 @@ export const runDecompose = async (): Promise<void> => {
     process.exit(0);
   }
 
-  // 7. Convert splits to RuleFiles and write
+  // 8. Convert splits to RuleFiles and write
   const toolConfig = TOOL_REGISTRY[toolId];
   const hasFrontmatter = toolConfig?.hasFrontmatter ?? false;
 
@@ -395,18 +454,22 @@ export const runDecompose = async (): Promise<void> => {
     };
   });
 
-  // 8. Check for existing files that would be overwritten
+  // 9. Check for existing files that would be overwritten
   const ext = toolConfig?.extension || ".md";
   const existingFiles: string[] = [];
 
-  for (const rule of ruleFiles) {
+  for (let i = 0; i < ruleFiles.length; i++) {
+    const rule = ruleFiles[i]!;
+    const prefix = numbered
+      ? `${String(i + 1).padStart(2, "0")}-`
+      : "";
     const targetDir = rule.directory
       ? join(outputDir as string, rule.directory)
       : (outputDir as string);
-    const filePath = join(targetDir, `${rule.name}${ext}`);
+    const filePath = join(targetDir, `${prefix}${rule.name}${ext}`);
     const displayPath = rule.directory
-      ? `${rule.directory}/${rule.name}${ext}`
-      : `${rule.name}${ext}`;
+      ? `${rule.directory}/${prefix}${rule.name}${ext}`
+      : `${prefix}${rule.name}${ext}`;
     if (await exists(filePath)) {
       existingFiles.push(displayPath);
     }
@@ -431,7 +494,7 @@ export const runDecompose = async (): Promise<void> => {
     }
   }
 
-  // 9. Format and write files
+  // 10. Format and write files
   const s = p.spinner();
   s.start("Formatting & writing files...");
 
@@ -443,6 +506,8 @@ export const runDecompose = async (): Promise<void> => {
     })),
   );
 
-  await writeAsDirectory(formattedRules, outputDir as string, toolId);
+  await writeAsDirectory(formattedRules, outputDir as string, toolId, {
+    numbered,
+  });
   s.stop(`Written ${formattedRules.length} files to ${outputDir}`);
 };

@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, basename, extname } from "node:path";
 import matter from "gray-matter";
 import type { ToolId, ToolConfig, RuleFile, SourceId } from "./types.js";
+import { TOOL_IDS } from "./types.js";
 import { ruleFrontmatterSchema } from "./schemas.js";
 
 /** Tool registry — config for all supported tools */
@@ -193,6 +194,85 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 };
 
 /**
+ * Detect which tool a document was likely written for,
+ * based on tool-specific values (paths, extensions, names) found in the content.
+ * Returns the best-matching tool ID or null if no strong signal.
+ */
+export const detectSourceTool = (content: string): ToolId | null => {
+  let bestTool: ToolId | null = null;
+  let bestScore = 0;
+
+  const SIGNAL_KEYS = [
+    "RULES_DIR",
+    "SKILLS_DIR",
+    "GLOBAL_RULES",
+    "GLOBAL_SKILLS",
+    "RULE_EXAMPLE",
+  ] as const;
+
+  for (const toolId of TOOL_IDS) {
+    const vars = TOOL_VARIABLES[toolId];
+    if (!vars) continue;
+
+    let score = 0;
+    for (const key of SIGNAL_KEYS) {
+      const value = vars[key];
+      if (value && value.length >= 4 && content.includes(value)) {
+        score += value.length;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestTool = toolId;
+    }
+  }
+
+  return bestTool;
+};
+
+/** Individual replacement entry for reporting to the user */
+export interface PlaceholderReplacement {
+  variable: string;
+  value: string;
+  count: number;
+}
+
+/**
+ * Replace tool-specific values in content with {{PLACEHOLDER}} syntax.
+ * Replaces longest values first to avoid partial matches.
+ * Skips values shorter than 4 characters to avoid false positives (e.g. ".md").
+ */
+export const replaceWithPlaceholders = (
+  content: string,
+  toolId: ToolId,
+): { content: string; replacements: PlaceholderReplacement[] } => {
+  const vars = TOOL_VARIABLES[toolId];
+  if (!vars) return { content, replacements: [] };
+
+  // Build replacement pairs, sorted by value length (longest first)
+  const pairs = Object.entries(vars)
+    .filter(([, value]) => value.length >= 4)
+    .sort(([, a], [, b]) => b.length - a.length);
+
+  const replacements: PlaceholderReplacement[] = [];
+  let result = content;
+
+  for (const [key, value] of pairs) {
+    const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(escaped, "g");
+    const matches = result.match(regex);
+
+    if (matches && matches.length > 0) {
+      replacements.push({ variable: key, value, count: matches.length });
+      result = result.replace(regex, `{{${key}}}`);
+    }
+  }
+
+  return { content: result, replacements };
+};
+
+/**
  * Replace {{PLACEHOLDER}} with tool-specific values.
  * Lines containing a placeholder that resolves to empty string are removed entirely.
  */
@@ -303,20 +383,31 @@ export const writeAsSingleFile = async (
   await writeFile(filePath, content, "utf-8");
 };
 
+/** Options for writeAsDirectory behavior */
+export interface WriteDirectoryOptions {
+  /** Prefix filenames with zero-padded index (e.g. 01-name.ext) */
+  numbered?: boolean;
+}
+
 /** Write rules as individual files in a tool's format */
 export const writeAsDirectory = async (
   rules: RuleFile[],
   dir: string,
   toolId: ToolId,
+  options?: WriteDirectoryOptions,
 ): Promise<void> => {
   const config = TOOL_REGISTRY[toolId];
   if (!config) return;
 
   await mkdir(dir, { recursive: true });
 
-  for (const rule of rules) {
+  for (let i = 0; i < rules.length; i++) {
+    const rule = rules[i]!;
     const ext = config.extension || ".md";
-    const fileName = `${rule.name}${ext}`;
+    const prefix = options?.numbered
+      ? `${String(i + 1).padStart(2, "0")}-`
+      : "";
+    const fileName = `${prefix}${rule.name}${ext}`;
     const targetDir = rule.directory ? join(dir, rule.directory) : dir;
 
     await mkdir(targetDir, { recursive: true });

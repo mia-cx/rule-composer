@@ -45,15 +45,23 @@ A multiselect prompt shows all discovered sections. All are selected by default.
 │ [x] communication               Be concise (10 lines)
 ```
 
-### 5. Pick Output Format
+### 4.5. Numbered File Prefix Toggle
+
+Choose whether to add zero-padded numbered prefixes to output filenames (e.g., `01-approach.mdc`, `02-coding-conventions.mdc`). Defaults to yes. Array order determines numbering. The prefix is only applied to the filename — section headings in the content are not affected.
+
+### 5. Detect and Replace Tool-Specific Paths
+
+If the content contains tool-specific paths (e.g., `.cursor/rules/`), the tool detects the likely source tool using `detectSourceTool()` and shows which paths would be replaced with `{{PLACEHOLDER}}` syntax. You can confirm or skip this step.
+
+### 6. Pick Output Format
 
 Choose which tool format to write in. This determines file extension and whether frontmatter is generated.
 
-### 6. Pick Output Directory
+### 7. Pick Output Directory
 
 Defaults to the tool's standard rules directory (e.g., `.cursor/rules/` for Cursor).
 
-### 7. Generate Frontmatter
+### 8. Generate Frontmatter
 
 For tools that support frontmatter (currently only Cursor with `.mdc`):
 - **`alwaysApply: true`** is always included
@@ -61,17 +69,17 @@ For tools that support frontmatter (currently only Cursor with `.mdc`):
 
 Tools without frontmatter support get plain markdown.
 
-### 8. Format Output
+### 9. Format Output
 
 All output is formatted with [Prettier](https://prettier.io) before writing. The formatter resolves config from the nearest `.prettierrc` (walking up from the output directory). If Prettier is unavailable, content is written as-is.
 
-### 9. Overwrite Confirmation
+### 10. Overwrite Confirmation
 
-If any output files already exist, the tool lists them and asks for confirmation before overwriting.
+If any output files already exist (accounting for numbered prefixes when enabled), the tool lists them and asks for confirmation before overwriting.
 
-### 10. Write Files
+### 11. Write Files
 
-Files are written to the output directory with the correct extension. If AI-assisted decomposition assigned a `directory` field, files are placed in subdirectories.
+Files are written to the output directory with the correct extension. If numbered prefixes are enabled, files are named `01-name.ext`, `02-name.ext`, etc. If AI-assisted decomposition assigned a `directory` field, files are placed in subdirectories.
 
 ## Split Strategies in Detail
 
@@ -84,8 +92,9 @@ Deterministic, no external dependencies. Walks through lines and:
 1. Collects content before the first `##` as "preamble" (if it contains meaningful content beyond just an H1)
 2. Each `##` starts a new section
 3. `###` and deeper headings stay with their parent `##`
-4. Heading text is converted to kebab-case for the filename
-5. Description is extracted from the first non-heading line
+4. Numbered prefixes (e.g., `## 1. Approach`) are stripped from both the filename and the content heading via `stripHeadingNumber()`
+5. Heading text is converted to kebab-case for the filename
+6. Description is extracted from the first non-heading line
 
 ### AI-Assisted (`aiDecompose`)
 
@@ -106,7 +115,7 @@ Uses OpenRouter API with a metadata-only response format for token efficiency:
 
 | Module | File | Purpose |
 |--------|------|---------|
-| Splitter | `scripts/decompose/splitter.ts` | `splitByHeadings()` — H2-boundary splitting |
+| Splitter | `scripts/decompose/splitter.ts` | `splitByHeadings()` — H2-boundary splitting, `stripHeadingNumber()` — removes `N. ` prefixes |
 | Matcher | `scripts/decompose/matcher.ts` | `parseHeadingMap()`, `reconstructFromHeadings()` — AI metadata → content |
 | Decompose helpers | `scripts/decompose/index.ts` | `extractProseDescription()`, `buildRawContent()` — frontmatter generation |
 | System Prompt | `scripts/decompose/prompt.md` | Instructions for AI-assisted decomposition |

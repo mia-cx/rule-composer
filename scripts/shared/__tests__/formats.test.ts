@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
   resolvePlaceholders,
+  detectSourceTool,
+  replaceWithPlaceholders,
   readRule,
   writeAsDirectory,
   writeAsSingleFile,
@@ -130,6 +132,110 @@ describe("resolvePlaceholders", () => {
     expect(lines).toHaveLength(2);
     expect(lines[0]).toBe("Static line");
     expect(lines[1]).toBe("Another static line");
+  });
+});
+
+describe("detectSourceTool", () => {
+  it("detects cursor from .cursor/rules/ paths", () => {
+    const content = "Put rules in `.cursor/rules/` and skills in `.cursor/skills/`.";
+    expect(detectSourceTool(content)).toBe("cursor");
+  });
+
+  it("detects claude from .claude/rules/ paths", () => {
+    const content = "Store rules in `.claude/rules/` for Claude Code.";
+    expect(detectSourceTool(content)).toBe("claude");
+  });
+
+  it("detects copilot from .github/instructions/ paths", () => {
+    const content =
+      "Place instructions in `.github/instructions/` with `.instructions.md` extension.";
+    expect(detectSourceTool(content)).toBe("copilot");
+  });
+
+  it("returns null when no tool-specific paths found", () => {
+    const content = "This is a generic document with no tool-specific paths.";
+    expect(detectSourceTool(content)).toBeNull();
+  });
+
+  it("picks the tool with the most/strongest matches", () => {
+    // Cursor has more signals: RULES_DIR, SKILLS_DIR, GLOBAL_RULES, GLOBAL_SKILLS
+    const content = [
+      "Rules: .cursor/rules/",
+      "Skills: .cursor/skills/",
+      "Global: ~/.cursor/rules/",
+      "Also mentioned: .claude/rules/",
+    ].join("\n");
+    expect(detectSourceTool(content)).toBe("cursor");
+  });
+
+  it("ignores values shorter than 4 characters", () => {
+    // ".md" is 3 chars — should not trigger claude detection
+    const content = "Use .md files for documentation.";
+    expect(detectSourceTool(content)).toBeNull();
+  });
+});
+
+describe("replaceWithPlaceholders", () => {
+  it("replaces cursor paths with placeholders", () => {
+    const input = "Put rules in `.cursor/rules/` for Cursor.";
+    const { content, replacements } = replaceWithPlaceholders(input, "cursor");
+    expect(content).toBe("Put rules in `{{RULES_DIR}}` for {{TOOL_NAME}}.");
+    expect(replacements.length).toBeGreaterThan(0);
+  });
+
+  it("replaces longest matches first to avoid partial replacements", () => {
+    // RULE_EXAMPLE (.cursor/rules/my-convention.mdc) contains RULES_DIR (.cursor/rules/)
+    // Longest-first ensures RULE_EXAMPLE is replaced as a whole
+    const input = "Example: .cursor/rules/my-convention.mdc";
+    const { content } = replaceWithPlaceholders(input, "cursor");
+    expect(content).toBe("Example: {{RULE_EXAMPLE}}");
+  });
+
+  it("skips values shorter than 4 characters", () => {
+    // Claude's RULES_EXT is ".md" (3 chars) — should not be replaced
+    const input = "Use .md files in `.claude/rules/`.";
+    const { content, replacements } = replaceWithPlaceholders(input, "claude");
+    expect(content).toContain(".md");
+    expect(content).toContain("{{RULES_DIR}}");
+    const extReplacement = replacements.find((r) => r.variable === "RULES_EXT");
+    expect(extReplacement).toBeUndefined();
+  });
+
+  it("reports replacement counts accurately", () => {
+    const input = [
+      "First: .cursor/rules/",
+      "Second: .cursor/rules/",
+      "Third: .cursor/skills/",
+    ].join("\n");
+    const { replacements } = replaceWithPlaceholders(input, "cursor");
+    const rulesDir = replacements.find((r) => r.variable === "RULES_DIR");
+    const skillsDir = replacements.find((r) => r.variable === "SKILLS_DIR");
+    expect(rulesDir?.count).toBe(2);
+    expect(skillsDir?.count).toBe(1);
+  });
+
+  it("returns unchanged content for tools with no matching values", () => {
+    const input = "Generic content with no tool paths.";
+    const { content, replacements } = replaceWithPlaceholders(input, "cursor");
+    expect(content).toBe(input);
+    expect(replacements).toHaveLength(0);
+  });
+
+  it("handles multiple variable replacements across content", () => {
+    const input = [
+      "Use Cursor for editing.",
+      "Rules go in .cursor/rules/ with .mdc extension.",
+      "Skills go in .cursor/skills/ as SKILL.md files.",
+      "Global rules at ~/.cursor/rules/.",
+    ].join("\n");
+    const { content, replacements } = replaceWithPlaceholders(input, "cursor");
+    expect(content).toContain("{{TOOL_NAME}}");
+    expect(content).toContain("{{RULES_DIR}}");
+    expect(content).toContain("{{SKILLS_DIR}}");
+    expect(content).toContain("{{RULES_EXT}}");
+    expect(content).toContain("{{SKILLS_EXT}}");
+    expect(content).toContain("{{GLOBAL_RULES}}");
+    expect(replacements.length).toBeGreaterThanOrEqual(6);
   });
 });
 
@@ -333,5 +439,100 @@ describe("writeAsDirectory", () => {
       "utf-8",
     );
     expect(content).toBe("# Cloudflare\n\nUse Wrangler.");
+  });
+
+  it("writes numbered file prefixes when numbered option is true", async () => {
+    const outDir = join(tmpDir, "numbered-out");
+    const rules = [
+      {
+        path: "",
+        name: "approach",
+        description: "Approach rules",
+        body: "# Approach\n\nPlan first.",
+        rawContent: "# Approach\n\nPlan first.",
+        source: "claude" as const,
+        type: "rule" as const,
+        hasPlaceholders: false,
+      },
+      {
+        path: "",
+        name: "coding",
+        description: "Coding rules",
+        body: "# Coding\n\nEarly returns.",
+        rawContent: "# Coding\n\nEarly returns.",
+        source: "claude" as const,
+        type: "rule" as const,
+        hasPlaceholders: false,
+      },
+      {
+        path: "",
+        name: "testing",
+        description: "Testing rules",
+        body: "# Testing\n\nUse Vitest.",
+        rawContent: "# Testing\n\nUse Vitest.",
+        source: "claude" as const,
+        type: "rule" as const,
+        hasPlaceholders: false,
+      },
+    ];
+
+    await writeAsDirectory(rules, outDir, "claude", { numbered: true });
+
+    const { readFile: rf, access: acc } = await import("node:fs/promises");
+
+    // Verify filenames have zero-padded prefixes
+    const f1 = await rf(join(outDir, "01-approach.md"), "utf-8");
+    expect(f1).toBe("# Approach\n\nPlan first.");
+
+    const f2 = await rf(join(outDir, "02-coding.md"), "utf-8");
+    expect(f2).toBe("# Coding\n\nEarly returns.");
+
+    const f3 = await rf(join(outDir, "03-testing.md"), "utf-8");
+    expect(f3).toBe("# Testing\n\nUse Vitest.");
+  });
+
+  it("writes unnumbered files when numbered option is false", async () => {
+    const outDir = join(tmpDir, "unnumbered-out");
+    const rules = [
+      {
+        path: "",
+        name: "approach",
+        description: "Approach rules",
+        body: "# Approach\n\nPlan first.",
+        rawContent: "# Approach\n\nPlan first.",
+        source: "claude" as const,
+        type: "rule" as const,
+        hasPlaceholders: false,
+      },
+    ];
+
+    await writeAsDirectory(rules, outDir, "claude", { numbered: false });
+
+    const { readFile: rf } = await import("node:fs/promises");
+    const content = await rf(join(outDir, "approach.md"), "utf-8");
+    expect(content).toBe("# Approach\n\nPlan first.");
+  });
+
+  it("combines numbered prefixes with subdirectories", async () => {
+    const outDir = join(tmpDir, "numbered-subdir-out");
+    const rules = [
+      {
+        path: "",
+        name: "deploy",
+        description: "Deploy rules",
+        body: "# Deploy\n\nUse Wrangler.",
+        rawContent: "# Deploy\n\nUse Wrangler.",
+        source: "claude" as const,
+        type: "rule" as const,
+        hasPlaceholders: false,
+        directory: "infra",
+      },
+    ];
+
+    await writeAsDirectory(rules, outDir, "claude", { numbered: true });
+
+    const { readFile: rf } = await import("node:fs/promises");
+    const content = await rf(join(outDir, "infra", "01-deploy.md"), "utf-8");
+    expect(content).toBe("# Deploy\n\nUse Wrangler.");
   });
 });

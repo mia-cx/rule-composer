@@ -6,10 +6,17 @@ export interface SplitResult {
   directory?: string;
 }
 
+/** Strip a leading number prefix (e.g. "1. " or "03. ") from a heading */
+export const stripHeadingNumber = (heading: string): string => {
+  return heading.replace(/^\d+\.\s+/, "");
+};
+
 /**
  * Split a markdown document on H2 (##) boundaries.
  * Each H2 section becomes a separate rule.
  * H3+ subsections stay with their parent H2.
+ * Numbered prefixes (e.g. "## 1. Approach") are stripped from both
+ * the filename and the content heading.
  */
 export const splitByHeadings = (markdown: string): SplitResult[] => {
   const lines = markdown.split("\n");
@@ -40,8 +47,11 @@ export const splitByHeadings = (markdown: string): SplitResult[] => {
       }
 
       foundFirstH2 = true;
-      currentName = toKebabCase(h2Match[1]!);
-      currentLines = [line];
+      const rawHeading = h2Match[1]!;
+      const strippedHeading = stripHeadingNumber(rawHeading);
+      currentName = toKebabCase(strippedHeading);
+      // Store the heading line with the number stripped
+      currentLines = [`## ${strippedHeading}`];
     } else if (foundFirstH2) {
       currentLines.push(line);
     } else {
