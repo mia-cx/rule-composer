@@ -1,0 +1,32 @@
+---
+description: How the tool registry and variable maps work in formats.ts
+globs: scripts/shared/formats.ts
+---
+
+# Tool Registry Pattern
+
+`TOOL_REGISTRY` and `TOOL_VARIABLES` in `scripts/shared/formats.ts` define all 10 supported tools.
+
+## Adding a new tool
+
+1. Add the ID to `TOOL_IDS` in `types.ts`
+2. Add a `ToolConfig` entry in `TOOL_REGISTRY` (directories, singleFiles, extension, hasFrontmatter)
+3. Add a variable map in `TOOL_VARIABLES` (TOOL_NAME, RULES_DIR, RULES_EXT, SKILLS_DIR, etc.)
+4. Existing tests auto-cover via `TOOL_IDS` iteration — no test changes needed
+5. Optionally add tool-specific tests for unusual variable combinations
+
+## Key conventions
+
+- `hasFrontmatter: true` — only Cursor (`.mdc`). All others are plain markdown.
+- Empty string in `TOOL_VARIABLES` = feature not supported → lines referencing it are removed during resolution.
+- `extension: ""` — tools like Zed/Aider that use a single file with no extension. Variants use `.md` fallback.
+- `directories: []` — tools that only have single-file rules (no directory scanning).
+
+## Do
+
+- Keep variable maps exhaustive — every key present for every tool, even if empty string.
+- Use the skill `/add-tool` for the full step-by-step workflow.
+
+## Don't
+
+- Don't add tool-specific logic in `composer.ts` or `splitter.ts` — resolution happens via the variable map.

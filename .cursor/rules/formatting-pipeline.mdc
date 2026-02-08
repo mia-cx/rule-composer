@@ -1,0 +1,29 @@
+---
+description: Where and how Prettier formatting is applied to generated files
+globs: scripts/**/*.ts
+---
+
+# Formatting Pipeline
+
+Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions.
+
+## Integration points
+
+- `compose/index.ts` — formats `finalContent` and each rule's `body`/`rawContent` before writing
+- `decompose/index.ts` — formats each `RuleFile`'s `body`/`rawContent` before `writeAsDirectory`
+- `compose/variants.ts` — formats each file before `writeFile` (controlled by `format` param)
+
+## `formatMarkdown(content, filepath?)`
+
+Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest `.prettierrc` via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
+
+## Why not in write functions
+
+- `writeAsSingleFile` and `writeAsDirectory` are dumb I/O — tested directly in unit tests
+- If formatting happened inside them, every unit test would need Prettier or `format: false`
+- Integration tests go through `writeAsDirectory` directly (not orchestration), so golden files stay unformatted and tests pass without Prettier involvement
+
+## Do
+
+- Pass `format: false` in `variants.test.ts` to skip Prettier overhead in tests
+- Regenerate golden fixtures (`pnpm generate-fixtures`) if formatting defaults change

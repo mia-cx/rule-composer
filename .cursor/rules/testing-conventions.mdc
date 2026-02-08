@@ -1,0 +1,30 @@
+---
+description: Testing patterns used across the 132-test suite
+globs: scripts/**/__tests__/**/*.test.ts
+---
+
+# Testing Conventions
+
+132 tests across 10 files. Vitest. ESM imports with `.js` extension.
+
+## Patterns
+
+**Factory functions** — `makeRule()`, `makeSource()` create test data with sensible defaults. Override only what matters for the test.
+
+**Temp directories** — All filesystem tests use `join(tmpdir(), 'arc-test-<name>')` with `beforeAll`/`afterAll` cleanup. Unique prefix per describe block to avoid parallel collisions.
+
+**No mocking** — Real filesystem operations against temp dirs. Higher confidence, ~1s total runtime.
+
+**Golden fixtures** — Integration tests compare against pre-generated files in `scripts/shared/__tests__/fixtures/`. Regenerate with `pnpm generate-fixtures` after changing core logic.
+
+## Do
+
+- One `describe` per export, one `it` per behavior.
+- Consolidate trivially similar tests into one (parameterized or sequential assertions).
+- `variants.test.ts`: pass `format: false` as 5th arg to skip Prettier in tests.
+
+## Don't
+
+- Don't mock `fs` — use real temp directories.
+- Don't test interactive prompts or HTTP calls — those are intentionally untested orchestration.
+- Don't forget to regenerate fixtures after changing `splitByHeadings`, `compose`, or `writeAsDirectory`.

@@ -1,0 +1,36 @@
+---
+description: AI-assisted decompose returns metadata only, content comes from source
+globs: scripts/decompose/**/*.ts
+---
+
+# Decompose AI Design
+
+The LLM never generates rule content. It only provides metadata.
+
+## How it works
+
+1. LLM receives the full document + system prompt
+2. LLM returns JSON: `[{ name, description, headings[], directory? }]`
+3. `headings` are exact H2 text references (or `__preamble__` for pre-H2 content)
+4. `reconstructFromHeadings()` copies content verbatim from the source document
+5. Validated with `decomposeResponseSchema` (Zod)
+
+## Why metadata-only
+
+- **Token efficiency** — LLM output is small (names + heading refs), not full content
+- **Content integrity** — source content is never rewritten, summarized, or altered by the LLM
+- **Simpler validation** — heading references are easy to verify against the source
+
+## Retry logic
+
+2-attempt retry. On validation failure, the error message is appended to the conversation so the LLM can self-correct. Falls back to `splitByHeadings()` if both attempts fail.
+
+## Do
+
+- Always reconstruct from source via `parseHeadingMap` + `reconstructFromHeadings`
+- Surface warnings for unmatched headings and unclaimed sections
+
+## Don't
+
+- Never use LLM-generated content as rule body text
+- Never skip the Zod validation step

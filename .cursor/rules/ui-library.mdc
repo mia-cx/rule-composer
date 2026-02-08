@@ -1,0 +1,10 @@
+---
+description: Conventions for the shared UI component library
+globs: "packages/ui/**"
+---
+
+# UI Library Conventions
+
+- **shadcn-svelte alias**: `@` maps to `src/lib/components`. Imports use `@/ui/button` etc.
+- **Component exports**: Namespace pattern — `export * as Button from './button'`. Each component exports `Root` (as both `Root` and the component name), types (`ButtonProps`), and variant functions (`buttonVariants`).
+- **SCSS for design tokens**: Color tokens defined as SCSS mixins, consumed as CSS custom properties (`--background`, `--foreground`, `--primary`, etc.).

@@ -1,0 +1,11 @@
+---
+description: Quartz docs app conventions — Preact, not Svelte
+globs: "apps/docs/**"
+---
+
+# Docs App
+
+- Uses **Quartz** (Preact-based), requires Node >=22 — treat as a standalone Preact project, not Svelte.
+- Content is authored in Obsidian and published via Quartz.
+- Use GitHub-flavored markdown links (`[text](path)`) instead of wikilinks for cross-compatibility.
+- Frontmatter fields: `title`, `authors`, `created`, `modified`.

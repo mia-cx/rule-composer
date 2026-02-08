@@ -1,0 +1,36 @@
+---
+description: Project structure, entry points, and module relationships for rule-composer
+alwaysApply: true
+---
+
+# Project Architecture
+
+Two subcommands (`compose`, `decompose`) sharing modules in `scripts/shared/`.
+
+```
+scripts/index.ts           → subcommand router (compose | decompose | interactive picker)
+scripts/compose/index.ts   → orchestration: scan → select → reorder → compose → optimize → write → variants
+scripts/decompose/index.ts → orchestration: detect → pick → split → select → numbered → placeholder → format → write
+scripts/shared/             → types, schemas, formats, scanner, openrouter, cli, tree-prompt
+```
+
+## Key boundaries
+
+- **Orchestration** (`compose/index.ts`, `decompose/index.ts`) — wires modules together, handles user interaction.
+- **Pure logic** (`composer.ts`, `splitter.ts`, `matcher.ts`) — no I/O, no prompts, fully testable.
+- **I/O adapters** (`formats.ts`: `readRule`, `writeAsSingleFile`, `writeAsDirectory`) — thin wrappers around `fs`. No formatting, no placeholder resolution.
+- **Formatting** happens at the orchestration layer via `formatMarkdown()`, not inside write functions. This keeps unit tests unaffected.
+
+## Section ordering & numbering
+
+- **Compose**: users can reorder selected rules (step 3.5) and add numbered prefixes to H2 headings via `addSectionNumbers()` (step 4.5). Both are optional toggles.
+- **Decompose**: `stripHeadingNumber()` removes `N. ` prefixes from H2 headings in both filename and content. `writeAsDirectory({ numbered: true })` prefixes filenames with zero-padded indices (`01-`, `02-`).
+
+## Data flow
+
+`RuleFile` is the core data type — everything reads into it and writes from it. `compose()` takes `RuleFile[]` and returns a string. `splitByHeadings()` returns `SplitResult[]` which the orchestrator converts to `RuleFile[]`.
+
+## Conventions
+
+- Keep interactive prompts in `cli.ts` or orchestration files, not in shared modules.
+- Call `formatMarkdown` at the orchestration layer, not inside `writeAsSingleFile` / `writeAsDirectory`.

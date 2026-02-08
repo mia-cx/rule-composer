@@ -1,0 +1,34 @@
+---
+description: Reverse placeholder detection — finding tool-specific paths and offering replacement
+globs: "scripts/shared/formats.ts,scripts/decompose/index.ts"
+---
+
+# Placeholder Detection (Reverse Resolution)
+
+`detectSourceTool` and `replaceWithPlaceholders` are the reverse of `resolvePlaceholders`.
+
+## How detection works
+
+`detectSourceTool(content)` checks only strong signal keys (`RULES_DIR`, `SKILLS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`) — never short/generic values. Scores each tool by total matched value length. Highest score wins.
+
+## How replacement works
+
+`replaceWithPlaceholders(content, toolId)` replaces concrete values with `{{VAR}}` syntax:
+1. Collects all non-empty variable values for the tool with length >= 4 (skips `.md`)
+2. Sorts by value length descending (longest first)
+3. Replaces globally, returns the count per variable
+
+Longest-first prevents `RULE_EXAMPLE` (`.cursor/rules/my-convention.mdc`) from being partially matched by `RULES_DIR` (`.cursor/rules/`).
+
+## CLI integration
+
+In `decompose/index.ts`, step 5 (between section selection and output format):
+1. Combine all split content, run `detectSourceTool`
+2. If a tool is detected, dry-run `replaceWithPlaceholders` for a preview
+3. Show the user what would change (value → placeholder, count)
+4. If confirmed, apply replacements to each split individually
+
+## Do
+
+- Always replace per-split (not on combined content) to keep split boundaries intact
+- Show a preview before applying — the user may not want all replacements
