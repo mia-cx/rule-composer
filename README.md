@@ -15,11 +15,21 @@ Run directly in any project without installing — scans for rules in the curren
 pnpm dlx rule-composer
 
 # Compose: merge rules into a single document
-pnpm dlx composer compose
+pnpm dlx rule-composer compose [path] [-o output]
 
 # Decompose: split a monolithic rules file into modular rules
-pnpm dlx rule-composer decompose
+pnpm dlx rule-composer decompose [path] [-o output-dir]
 ```
+
+The optional `[path]` argument lets you skip auto-detection:
+
+- **compose** — pass a directory of rule files (e.g., `.cursor/rules/`) or a single file
+- **decompose** — pass the file to split (e.g., `AGENTS.md`) or a directory to scan
+
+The optional `-o`/`--output` flag skips the interactive output prompt:
+
+- **compose** — file path (e.g., `-o AGENTS.md`) or directory ending with `/` (e.g., `-o .cursor/rules/`)
+- **decompose** — output directory (e.g., `-o .cursor/rules/`)
 
 For LLM features, pass your API key as an environment variable:
 
@@ -39,8 +49,8 @@ cp .env.example .env
 
 # Run via dev scripts
 pnpm dev            # Interactive
-pnpm compose        # Compose command
-pnpm decompose      # Decompose command
+pnpm compose [path] [-o output]     # Compose command
+pnpm decompose [path] [-o output]   # Decompose command
 pnpm build-variants # Regenerate coding-tools/
 ```
 
@@ -64,22 +74,22 @@ pnpm dlx rule-composer decompose
 
 ## Scripts
 
-| Script | Description |
-|--------|-------------|
-| `pnpm dev` | Run interactively (pick compose or decompose) |
-| `pnpm compose` | Compose rules for a target tool |
-| `pnpm decompose` | Decompose a monolithic rules file |
-| `pnpm build` | Build for distribution (tsup) |
-| `pnpm build-variants` | Regenerate `coding-tools/` directories |
-| `pnpm test` | Run all 132 tests |
-| `pnpm test:watch` | Run tests in watch mode |
-| `pnpm format` | Format codebase with Prettier |
-| `pnpm generate-fixtures` | Regenerate golden test fixtures |
+| Script                   | Description                                   |
+| ------------------------ | --------------------------------------------- |
+| `pnpm dev`               | Run interactively (pick compose or decompose) |
+| `pnpm compose [path]`    | Compose rules for a target tool               |
+| `pnpm decompose [path]`  | Decompose a monolithic rules file             |
+| `pnpm build`             | Build for distribution (tsup)                 |
+| `pnpm build-variants`    | Regenerate `coding-tools/` directories        |
+| `pnpm test`              | Run all 191 tests                             |
+| `pnpm test:watch`        | Run tests in watch mode                       |
+| `pnpm format`            | Format codebase with Prettier                 |
+| `pnpm generate-fixtures` | Regenerate golden test fixtures               |
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
+| Variable             | Required              | Description                                                                                                |
+| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `OPENROUTER_API_KEY` | For LLM features only | API key for [OpenRouter](https://openrouter.ai) — used for rule optimization and AI-assisted decomposition |
 
 The tool works fully without an API key. LLM features are always optional.
@@ -94,11 +104,12 @@ Full documentation is available in two places:
 - [Compose Command](apps/docs/content/compose.md)
 - [Decompose Command](apps/docs/content/decompose.md)
 - [Tool Registry](apps/docs/content/tool-registry.md) — supported tools, placeholders, variable maps
-- [Testing](apps/docs/content/testing/index.md) — 132-test suite across 10 files
+- [Testing](apps/docs/content/testing/index.md) — 191-test suite across 10 files
 
 **Online** (deployed):
 
 <!-- TODO: fill in URL after deploying docs -->
+
 - [Documentation](https://example.com) — _URL pending deployment_
 
 ## Project Structure
@@ -116,13 +127,17 @@ apps/
   docs/                Documentation site (Quartz)
 ```
 
+## Known Gotchas
+
+**Cursor `.mdc` globs vs YAML parsing**: Cursor requires `globs` values to be unquoted (quoted values become literal matches), but glob patterns starting with `*` (e.g., `**/*.mdc`) are invalid YAML — `*` is a YAML alias character. The CLI pre-quotes these via `quoteGlobs()` before parsing with `gray-matter`. See [Tool Registry docs](apps/docs/content/tool-registry.md#frontmatter-parsing-globs-and-yaml) for details.
+
 ## Roadmap
 
 ### CLI Enhancements
 
 - [ ] `--version`, `--help` flags
 - [ ] `--non-interactive` mode with `--rules`, `--tool`, `--output` flags for CI/scripting
-- [ ] `--input <path>` flag for decompose (currently interactive-only)
+- [x] `[path]` positional argument for both compose and decompose
 - [ ] Publish to npm registry (currently local-only)
 
 ### Compose Improvements

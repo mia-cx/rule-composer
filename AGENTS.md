@@ -1,177 +1,265 @@
 This is **rule-composer**, a CLI tool for composing, converting, and optimizing AI coding agent rules across 10+ tools. It lives in a pnpm monorepo. The primary codebase is in `scripts/` (TypeScript, ESM, tsup build). Documentation is in `apps/docs/content/` (Quartz/Markdown).
 
----
+## 1. Project Architecture
 
-## Approach
-
-Prefer **Plan mode** over Agent mode. Plan first, confirm, then implement. When a task involves multiple steps, architectural decisions, or trade-offs, switch to Plan mode proactively to keep things budget-friendly.
-
-Only move to Agent mode once the plan is agreed upon. For trivial single-file changes, skip the ceremony.
-
-## Task Management
-
-**For every non-trivial task, create a todo list before starting.** The list MUST include task-specific items AND these four standing items. Each one MUST appear as an explicit todo — mark it complete with a note, or mark it N/A with a reason. Silently omitting any of them is a failure mode.
-
-1. **Tests** — Write or update tests for the work done. Mark complete only after tests pass.
-2. **Rules & skills** — Capture any new project knowledge as `.cursor/rules/` or `.cursor/skills/`. See [Rules and Skills](#rules-and-skills) for triggers.
-3. **Documentation** — Update relevant docs in `apps/docs/content/` if the change affects documented behavior, commands, or architecture.
-4. **Review & close** — Before marking the task complete, review your own work for: gaps in logic or edge cases, potential bugs, performance issues, adherence to conventions (see [Coding Conventions](#coding-conventions)), and opportunities to simplify. Then verify: tests pass, app builds, rules/skills captured, docs updated. Ask: "Did I capture new project knowledge as rules or skills?" If no and the task involved non-trivial decisions, go back and create them.
-
-These four items are non-negotiable. They appear in every todo list, every time, regardless of task type. For items that genuinely do not apply (e.g., "Tests: N/A — no logic changed, documentation-only edit"), mark them N/A with a one-line justification visible in the todo list itself. The justification must be specific to the task, not generic.
-
-## Problem-Solving Protocol
-
-### Before Writing Code
-
-1. Read the relevant files first. Confirm structure and APIs from source.
-2. State your plan concisely — what you'll change and why.
-3. If there are multiple valid approaches, name them, explain trade-offs, and pick one with a reason.
-4. **Copy/move files via CLI** — Use `cp`, `mv`, `rsync` instead of reading and rewriting file contents to preserve token budget.
-
-### Dependabot / Security Branches
-
-When working on a Dependabot or security-related branch:
-
-1. Check the last 3 commits for context.
-2. Read the linked issue/PR for CVE identifiers and severity.
-3. Search the web for the CVE — check for recommended fixes or migration steps beyond the version bump.
-4. Verify the app builds and tests pass after the update.
-
-### When Building Features
-
-1. Implement the minimal working version first.
-2. Verify it works (or ask the user to verify) before adding complexity.
-3. If you leave a TODO, flag it explicitly and address it before finishing.
-
-### When Debugging & Error Recovery
-
-1. **Reproduce first.** Confirm the actual error or behavior before proposing a fix.
-2. **Simple causes first.** Check for typos, wrong file paths, missing imports, stale caches, version mismatches before investigating complex causes.
-3. **Track what you've tried.** List prior failed approaches and _why_ they failed. Only retry if circumstances changed.
-4. **Two-strike rule.** After two failed attempts, stop — summarize what you know, re-examine assumptions, consider causes in a different category (logic → config, code → data). If still stuck, ask the user.
-5. **Change direction over retrying.** Explore a fundamentally different angle instead of variations of a failed approach.
-6. **Command fails** — Read error output fully. Check for missing dependencies, permissions, wrong cwd, sandbox restrictions.
-7. **Lint errors** — Run the linter on edited files immediately. Fix what you introduced; leave pre-existing lints unless they block the build.
-8. **Tests break** — Run the failing test first to isolate the cause. Distinguish intentional behavior change from regression. Fix before moving on.
-9. **Build fails** — Check for missing imports, type errors, and circular dependencies first.
-
-### Testing & Verification
-
-1. **Write tests alongside implementation.** Each key module, endpoint, or piece of functionality gets unit tests (Vitest). Test as you build, not after.
-2. **Tests must pass.** Run and confirm. A failing test is worse than no test.
-3. **The app must build and run.** Verify before considering a task complete. Warnings are acceptable.
-
-## Workspace Conventions
-
-The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and packages are **git submodules** — each lives in its own repository (namespaced under the same GitHub org) and is added to the monorepo via `git submodule add`. Only the default template scaffolding (config, docs, etc.) lives directly in the monorepo repo.
-
-### Standard Monorepo Shape
+Two subcommands (`compose`, `decompose`) sharing modules in `scripts/shared/`.
 
 ```
-apps/
-  docs/          ← Always present. Quartz instance (Preact, not Svelte). Obsidian vault as content source.
-  [app-name]/    ← SvelteKit apps by default.
-packages/
-  config/        ← Shared tsconfig, eslint, prettier, lint-staged configs.
-  ui/            ← Component library (shadcn-svelte, Bits-UI, TailwindCSS).
-  utils/         ← Shared utilities and helpers. Published under @mia-cx when reusable across projects.
+scripts/index.ts           → flag parser + subcommand router (compose [path] [-o out] | decompose [path] [-o out])
+scripts/compose/index.ts   → orchestration: [input?] → scan → select → reorder → compose → optimize → [-o?] write → variants
+scripts/decompose/index.ts → orchestration: [input?] → detect → pick → split → select → numbered → placeholder → format → [-o?] write
+scripts/shared/            → types, schemas, formats, scanner, openrouter, cli, tree-prompt
 ```
 
-**Notes:**
+Both subcommands accept an optional `[path]` argument (file or directory) that skips auto-detection, and `--output`/`-o` to skip the interactive output prompt. Paths ending with `/` are treated as directory targets.
 
-- For Cloudflare SvelteKit apps, use the `PRIVATE_` prefix for server-only environment variables (`env.privatePrefix: 'PRIVATE_'` in svelte.config).
+### Key boundaries
 
-### New Project Setup
+- **Orchestration** (`compose/index.ts`, `decompose/index.ts`) — wires modules together, handles user interaction.
+- **Pure logic** (`composer.ts`, `splitter.ts`, `matcher.ts`) — no I/O, no prompts, fully testable.
+- **I/O adapters** (`formats.ts`: `readRule`, `writeAsSingleFile`, `writeAsDirectory`) — thin wrappers around `fs`. No formatting, no placeholder resolution.
+- **Formatting** happens at the orchestration layer via `formatMarkdown()`, not inside write functions. This keeps unit tests unaffected.
 
-When the user is creating a new monorepo, walk them through these steps:
+### Section ordering & numbering
 
-1. **Scaffold with Turborepo.** Suggest the user runs `pnpm dlx create-turbo@latest --example with-svelte` or provides a custom template repo via `--example <repo-url>`.
-2. **Follow the Standard Monorepo Shape.** Ensure `apps/docs/`, `packages/config/`, `packages/ui/`, and `packages/utils/` exist. Inform the user if any are missing after scaffolding.
-3. **Set up the docs app.** Tell the user to run `npx quartz create` inside `apps/docs/`. Quartz requires manual initialization.
-4. **Set up shared configs** in `packages/config/`.
+- **Compose**: `compose()` increments all heading levels by one per-section (H1 → H2, H2 → H3, etc.) by default to avoid multiple H1s in the combined output (`incrementHeadings` option, default `true`). Scoped rules (`alwaysApply: false`) get a `> [!globs] patterns...` callout injected after the first heading (`embedGlobs` option, default `true`). Users can also reorder selected rules (step 3.5) and add numbered prefixes to H2 headings via `addSectionNumbers()` (step 4.5). Both are optional toggles.
+- **Decompose**: `extractGlobAnnotation()` detects `> [!globs]` callouts in split content and extracts the glob patterns and `alwaysApply: false` flag back into frontmatter via `buildRawContent()`. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values. `stripHeadingNumber()` removes `N. ` prefixes from H2 headings in both filename and content. `writeAsDirectory({ numbered: true })` prefixes filenames with zero-padded indices (`01-`, `02-`).
 
-### Adding an App
+### Data flow
 
-When adding an app or package to an existing monorepo:
+`RuleFile` is the core data type — everything reads into it and writes from it. `compose()` takes `RuleFile[]` and returns a string. `splitByHeadings()` returns `SplitResult[]` which the orchestrator converts to `RuleFile[]`.
 
-1. **Create a separate repo** under the same GitHub org (e.g., `@mia-cx/new-app`).
-2. **Add it as a git submodule**: `git submodule add <repo-url> apps/<app-name>` (or `packages/<pkg-name>`).
-3. **Scaffold using the official CLI** rather than hand-writing configs. Guide on which CLI to use:
-   - SvelteKit: `pnpm create svelte@latest`
-   - Astro: `pnpm create astro@latest`
-   - Next.js: `pnpm create next-app@latest`
-   - Quartz: `pnpx quartz create`
-   - Cloudflare: `pnpm dlx wrangler init`
-4. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
-5. Fetch the relevant docs first (see [Reference Links](#reference-links)).
+### Conventions
 
-## Rules and Skills
+- Keep interactive prompts in `cli.ts` or orchestration files, not in shared modules.
+- Call `formatMarkdown` at the orchestration layer, not inside `writeAsSingleFile` / `writeAsDirectory`.
 
-**CRITICAL — You MUST create rules and skills as you work.** Every conversation that touches architecture, debugging, or implementation MUST leave behind captured knowledge.
+## 2. .mdc Frontmatter Conventions
 
-**Rules** (`.cursor/rules/*.mdc`) — Project knowledge: architecture decisions, conventions, patterns, gotchas. One concern per file, under 50 lines. Use `alwaysApply: true` for project-wide context, `globs` for file-scoped patterns.
+> [!globs] \*_/_.mdc
 
-**Skills** (`.cursor/skills/*/SKILL.md`) — Repeatable multi-step workflows. Use `disable-model-invocation: true` for manual-only invocation.
+Every `.mdc` rule file must have valid YAML frontmatter with these fields:
 
-### Mandatory triggers
+### Required fields
 
-Create a **rule** when you: make an architectural decision, discover a non-obvious gotcha, establish a repeatable pattern, or resolve a recurring bug.
+- `description` — One-line summary of what the rule covers
+- `alwaysApply` — Explicit boolean. `true` for project-wide rules (no globs), `false` for scoped rules (with globs)
 
-Create a **skill** when you: complete a multi-step workflow the user will repeat, or build a process involving CLI commands or tool sequences.
+### Optional fields
 
-**Promote to global when reusable.** If a rule or skill applies across projects, suggest moving it to `~/.cursor/rules/` or `~/.cursor/skills/`.
+- `globs` — File patterns that trigger the rule. Unquoted, never wrapped in `"..."` or `[...]`
+  - Single: `globs: scripts/**/*.ts`
+  - Multiple: `globs: scripts/shared/formats.ts, scripts/decompose/index.ts`
 
-## Technology Preferences
+### Rules
 
-**Frontend:** SvelteKit (Svelte 5, Vite) by default. shadcn-svelte + Bits-UI for components. TailwindCSS for styling. nanostores for global state. Svelte 5 runes (`$state`, `$derived`, `$effect`) for local state — no Svelte 4 stores. Exploring: Astro, React, Next.js.
+- Every rule with `globs` must set `alwaysApply: false`
+- Every rule without `globs` must set `alwaysApply: true`
+- Glob values are always unquoted — quotes cause literal matching, not pattern matching
+- Multiple globs use comma-separated values, not YAML arrays — `[...]` syntax does not parse correctly
+- Glob patterns starting with `*` (e.g., `**/*.mdc`) are invalid YAML (`*` is a YAML alias character). Cursor handles them natively, but `gray-matter` will crash. The CLI pre-quotes these via `quoteGlobs()` before parsing.
 
-**Backend & Data:** SQLite or Postgres. Drizzle ORM. REST by default, GraphQL when the data graph benefits. Cloudflare (Workers, Pages, R2, D1) for infrastructure, Wrangler for dev/deploy.
+## 3. Tool Registry Pattern
 
-**Tooling:** pnpm always. Turborepo for monorepo orchestration. tsup for building packages. TypeScript strict mode (`noUncheckedIndexedAccess: true`). Vitest for unit tests. Playwright for E2E (only after working user-facing flows exist).
+> [!globs] scripts/shared/formats.ts
 
-## Coding Conventions
+`TOOL_REGISTRY` and `TOOL_VARIABLES` in `scripts/shared/formats.ts` define all 10 supported tools.
 
-- **Early returns** — Guard clauses first, reduce nesting.
-- **`const` arrow functions** — `const toggle = () => {}` over `function`. Define types.
-- **Tailwind only** — Utility classes for all styling. No `<style>` blocks or inline CSS.
-- **Svelte `class:` directive** — `class:active={isActive}` over ternary in class strings.
-- **Descriptive names** — Event handlers prefixed with `handle`: `handleClick`, `handleKeyDown`.
-- **Accessibility** — Interactive elements need `tabindex`, `aria-label`, keyboard handlers.
-- **DRY** — Same pattern twice? Abstract it.
-- **Imports** — Always include all required imports.
-- **File naming** — kebab-case for all files and directories.
-- **Colors** — OKLCH color space for design tokens (e.g., `oklch(0.141 0.005 285.823)`). Not hex, not HSL.
-- **Theming** — `data-theme` attribute (`[data-theme='dark']`, `[data-theme='light']`, `[data-theme='auto']`), not CSS classes. Auto mode uses `prefers-color-scheme`.
+### Adding a new tool
 
-## Communication
+1. Add the ID to `TOOL_IDS` in `types.ts`
+2. Add a `ToolConfig` entry in `TOOL_REGISTRY` (directories, singleFiles, extension, hasFrontmatter)
+3. Add a variable map in `TOOL_VARIABLES` (TOOL_NAME, RULES_DIR, RULES_EXT, SKILLS_DIR, etc.)
+4. Existing tests auto-cover via `TOOL_IDS` iteration — no test changes needed
+5. Optionally add tool-specific tests for unusual variable combinations
 
-- Be concise. Assume the user has context on their own question.
-- Explain trade-offs when multiple approaches exist, then pick one unless the user should decide.
-- Say "I don't know" when uncertain rather than guessing.
-- When showing code changes, focus on what changed and why.
-- On complex tasks, pause after each major step to summarize: done, remaining, open questions.
-- State transitions explicitly. ("Component done. Moving to the route handler.")
-- Bookend long responses with a brief conclusion summarizing key points and next actions.
+### Key conventions
 
-## Reference Links
+- `hasFrontmatter: true` — only Cursor (`.mdc`). All others are plain markdown.
+- Empty string in `TOOL_VARIABLES` = feature not supported → lines referencing it are removed during resolution.
+- `extension: ""` — tools like Zed/Aider that use a single file with no extension. Variants use `.md` fallback.
+- `directories: []` — tools that only have single-file rules (no directory scanning).
 
-Fetch these directly instead of searching the web.
+### Do
 
-- **SvelteKit** — https://svelte.dev/docs/kit
-- **Svelte 5** — https://svelte.dev/docs/svelte
-- **TailwindCSS** — https://tailwindcss.com/docs
-- **shadcn-svelte** — https://shadcn-svelte.com/docs
-- **Bits-UI** — https://bits-ui.com/docs
-- **Drizzle ORM** — https://orm.drizzle.team/docs/overview
-- **nanostores** — https://github.com/nanostores/nanostores
-- **Turborepo** — https://turbo.build/repo/docs
-- **Cloudflare Workers** — https://developers.cloudflare.com/workers/
-- **Cloudflare Pages** — https://developers.cloudflare.com/pages/
-- **Wrangler CLI** — https://developers.cloudflare.com/workers/wrangler/
-- **Quartz** — https://quartz.jzhao.xyz/
-- **Vitest** — https://vitest.dev/guide/
-- **Playwright** — https://playwright.dev/docs/intro
-- **pnpm** — https://pnpm.io/
-- **Astro** — https://docs.astro.build/
-- **Next.js** — https://nextjs.org/docs
-- **GraphQL** — https://graphql.org/learn/
+- Keep variable maps exhaustive — every key present for every tool, even if empty string.
+- Use the skill `/add-tool` for the full step-by-step workflow.
+
+### Don't
+
+- Don't add tool-specific logic in `composer.ts` or `splitter.ts` — resolution happens via the variable map.
+
+## 4. Placeholder System
+
+> [!globs] scripts/\*_/_.ts
+
+Rules use `{{VARIABLE_NAME}}` syntax. `resolvePlaceholders(content, toolId)` handles resolution.
+
+### Resolution rules
+
+1. `{{VAR}}` with non-empty value → replaced with the value
+2. `{{VAR}}` with empty string → **entire line removed** (not just the placeholder)
+3. Unknown `{{VAR}}` → left as-is (passthrough)
+
+### Line removal is critical
+
+When a rule mentions `.cursor/skills/` and the target tool has no skills concept (empty value), the whole line disappears. This avoids broken references like "Use for skills." with no path.
+
+If a line has mixed placeholders (one empty, one non-empty), the line is **still removed** — any empty var kills the line.
+
+### Identifying dynamic rules
+
+`readRule()` sets `hasPlaceholders: true` when `\{\{\w+\}\}` is found in the body. The CLI uses this to show which rules are dynamic vs static.
+
+### Available variables
+
+`TOOL_NAME`, `RULES_DIR`, `RULES_EXT`, `SKILLS_DIR`, `SKILLS_EXT`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`
+
+See `TOOL_VARIABLES` in `scripts/shared/formats.ts` for the full per-tool map.
+
+## 5. Placeholder Detection (Reverse Resolution)
+
+> [!globs] scripts/shared/formats.ts, scripts/decompose/index.ts
+
+`detectSourceTool` and `replaceWithPlaceholders` are the reverse of `resolvePlaceholders`.
+
+### How detection works
+
+`detectSourceTool(content)` checks only strong signal keys (`RULES_DIR`, `SKILLS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`) — never short/generic values. Scores each tool by total matched value length. Highest score wins.
+
+### How replacement works
+
+`replaceWithPlaceholders(content, toolId)` replaces concrete values with `{{VAR}}` syntax:
+
+1. Collects all non-empty variable values for the tool with length >= 4 (skips `.md`)
+2. Sorts by value length descending (longest first)
+3. Replaces globally, returns the count per variable
+
+Longest-first prevents `RULE_EXAMPLE` (`.cursor/rules/my-convention.mdc`) from being partially matched by `RULES_DIR` (`.cursor/rules/`).
+
+### CLI integration
+
+In `decompose/index.ts`, step 5 (between section selection and output format):
+
+1. Combine all split content, run `detectSourceTool`
+2. If a tool is detected, dry-run `replaceWithPlaceholders` for a preview
+3. Show the user what would change (value → placeholder, count)
+4. If confirmed, apply replacements to each split individually
+
+### Do
+
+- Always replace per-split (not on combined content) to keep split boundaries intact
+- Show a preview before applying — the user may not want all replacements
+
+## 6. Formatting Pipeline
+
+> [!globs] scripts/\*_/_.ts
+
+Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions.
+
+### Integration points
+
+- `compose/index.ts` — formats `finalContent` and each rule's `body`/`rawContent` before writing
+- `decompose/index.ts` — formats each `RuleFile`'s `body`/`rawContent` before `writeAsDirectory`
+- `compose/variants.ts` — formats each file before `writeFile` (controlled by `format` param)
+
+### `formatMarkdown(content, filepath?)`
+
+Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest `.prettierrc` via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
+
+### Why not in write functions
+
+- `writeAsSingleFile` and `writeAsDirectory` are dumb I/O — tested directly in unit tests
+- If formatting happened inside them, every unit test would need Prettier or `format: false`
+- Integration tests go through `writeAsDirectory` directly (not orchestration), so golden files stay unformatted and tests pass without Prettier involvement
+
+### Do
+
+- Pass `format: false` in `variants.test.ts` to skip Prettier overhead in tests
+- Regenerate golden fixtures (`pnpm generate-fixtures`) if formatting defaults change
+
+## 7. Decompose AI Design
+
+> [!globs] scripts/decompose/\*_/_.ts
+
+The LLM never generates rule content. It only provides metadata.
+
+### How it works
+
+1. LLM receives the full document + system prompt
+2. LLM returns JSON: `[{ name, description, headings[], directory? }]`
+3. `headings` are exact H2 text references (or `__preamble__` for pre-H2 content)
+4. `reconstructFromHeadings()` copies content verbatim from the source document
+5. Validated with `decomposeResponseSchema` (Zod)
+
+### Why metadata-only
+
+- **Token efficiency** — LLM output is small (names + heading refs), not full content
+- **Content integrity** — source content is never rewritten, summarized, or altered by the LLM
+- **Simpler validation** — heading references are easy to verify against the source
+
+### Retry logic
+
+2-attempt retry. On validation failure, the error message is appended to the conversation so the LLM can self-correct. Falls back to `splitByHeadings()` if both attempts fail.
+
+### Do
+
+- Always reconstruct from source via `parseHeadingMap` + `reconstructFromHeadings`
+- Surface warnings for unmatched headings and unclaimed sections
+
+### Don't
+
+- Never use LLM-generated content as rule body text
+- Never skip the Zod validation step
+
+## 8. Testing Conventions
+
+> [!globs] scripts/**/**tests**/**/\*.test.ts
+
+161 tests across 10 files. Vitest. ESM imports with `.js` extension.
+
+### Patterns
+
+**Factory functions** — `makeRule()`, `makeSource()` create test data with sensible defaults. Override only what matters for the test.
+
+**Temp directories** — All filesystem tests use `join(tmpdir(), 'arc-test-<name>')` with `beforeAll`/`afterAll` cleanup. Unique prefix per describe block to avoid parallel collisions.
+
+**No mocking** — Real filesystem operations against temp dirs. Higher confidence, ~1s total runtime.
+
+**Golden fixtures** — Integration tests compare against pre-generated files in `scripts/shared/__tests__/fixtures/`. Regenerate with `pnpm generate-fixtures` after changing core logic.
+
+### Do
+
+- One `describe` per export, one `it` per behavior.
+- Consolidate trivially similar tests into one (parameterized or sequential assertions).
+- `variants.test.ts`: pass `format: false` as 5th arg to skip Prettier in tests.
+
+### Don't
+
+- Don't mock `fs` — use real temp directories.
+- Don't test interactive prompts or HTTP calls — those are intentionally untested orchestration.
+- Don't forget to regenerate fixtures after changing `splitByHeadings`, `compose`, or `writeAsDirectory`.
+
+## 9. Docs App
+
+> [!globs] apps/docs/\*\*
+
+- Uses **Quartz** (Preact-based), requires Node >=22 — treat as a standalone Preact project, not Svelte.
+- Content is authored in Obsidian and published via Quartz.
+- Use GitHub-flavored markdown links (`[text](path)`) instead of wikilinks for cross-compatibility.
+- Frontmatter fields: `title`, `authors`, `created`, `modified`.
+
+## 10. Finding npm Packages
+
+When you need to find or choose npm packages (names, APIs, usage), use the registry search instead of web search. It is more token-efficient and returns package metadata directly.
+
+**Do:**
+
+- Run `pnpm search <term>` or `npm search <term>` to search the registry.
+- Use `pnpm info <pkg>` / `npm view <pkg>` for a specific package’s readme, versions, and exports.
+
+**Don’t:**
+
+- Use web search as the first step for “npm package for X” or “how to use package Y on npm”.
+
+**Reference:** [npm search](https://docs.npmjs.com/cli/v8/commands/npm-search) — search the registry; supports regex with a leading `/`.
