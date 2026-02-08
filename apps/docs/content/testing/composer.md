@@ -4,7 +4,7 @@ created: 2026-02-08
 modified: 2026-02-08
 ---
 
-# composer.test.ts — 28 tests
+# composer.test.ts — 22 tests
 
 **Source**: `scripts/compose/__tests__/composer.test.ts`
 **Module under test**: `scripts/compose/composer.ts`
@@ -44,9 +44,9 @@ The `compose(rules, targetTool, options?)` function strips frontmatter from each
 | adds numbered prefixes when numbered option is true | `{ numbered: true }` → `## 1. Approach`, `## 2. Coding`         |
 | does not add numbers when numbered option is false  | `{ numbered: false }` → headings unchanged                      |
 
-## `addSectionNumbers` — 4 tests
+## `addSectionNumbers` — 3 tests
 
-Adds sequential numbered prefixes to H2 headings. Skips already-numbered headings and H3+.
+Adds sequential numbered prefixes (1., 2., 3., …) to all H2 headings by position. Strips any existing `N.` from heading text so numbers always reflect order (e.g. `## 99. Rule Name` as 5th section becomes `## 5. Rule Name`). H3+ are left untouched.
 
 | Test                                   | What it checks                                                       |
 | -------------------------------------- | -------------------------------------------------------------------- |

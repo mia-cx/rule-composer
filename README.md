@@ -56,7 +56,10 @@ pnpm compose [path] [-o output]     # Compose command
 pnpm decompose [path] [-o output]   # Decompose command
 pnpm sync [push|pull|diff]          # Sync rules/skills with global config
 pnpm build-variants                 # Regenerate coding-tools/
+pnpm lint                           # ESLint: @eslint/markdown for .md/.mdc, typescript-eslint for scripts/
 ```
+
+Linting uses ESLint (flat config): **@eslint/markdown** for Markdown and **typescript-eslint** for `scripts/**/*.ts`. Run `pnpm lint` before committing.
 
 ## Commands
 
@@ -134,7 +137,7 @@ Full documentation is available in two places:
 
 ## Project Structure
 
-```
+```text
 rules/                 Source rules with {{placeholders}}
 skills/                Source skills with {{placeholders}}
 coding-tools/          Generated tool-specific variants: <toolId>/rules/, <toolId>/skills/<skill-name>/SKILL.md (do not edit)

@@ -4,7 +4,7 @@ This is **rule-composer**, a CLI tool for composing, converting, and optimizing 
 
 Two subcommands (`compose`, `decompose`) sharing modules in `scripts/shared/`.
 
-```
+```text
 scripts/index.ts           → flag parser + subcommand router (compose [path] [-o out] | decompose [path] [-o out])
 scripts/compose/index.ts   → orchestration: [input?] → scan → select → reorder → compose → optimize → [-o?] write → variants
 scripts/decompose/index.ts → orchestration: [input?] → detect → pick → split → select → numbered → placeholder → format → [-o?] write
@@ -22,7 +22,7 @@ Both subcommands accept an optional `[path]` argument (file or directory) that s
 
 ### Section ordering & numbering
 
-- **Compose**: `compose()` increments all heading levels by one per-section (H1 → H2, H2 → H3, etc.) by default to avoid multiple H1s in the combined output (`incrementHeadings` option, default `true`). Scoped rules (`alwaysApply: false`) get a `> [!globs] patterns...` callout injected after the first heading (`embedGlobs` option, default `true`). Users can also reorder selected rules (step 3.5) and add numbered prefixes to H2 headings via `addSectionNumbers()` (step 4.5). Both are optional toggles.
+- **Compose**: Rules are composed in order of their filename prefix (01-, 02-, …, 99-), so e.g. `99-rule-name.mdc` appears last in the monolith. Section numbers in the output are always sequential (1., 2., 3., …) by position—`addSectionNumbers()` strips any existing `N.` from H2 text and assigns numbers by order, not from the filename. `compose()` increments all heading levels by one per-section (H1 → H2, H2 → H3, etc.) by default (`incrementHeadings` option, default `true`). Scoped rules get a `> [!globs] patterns...` callout after the first heading (`embedGlobs` option, default `true`). Users can reorder selected rules (step 3.5) and toggle numbered H2 prefixes (step 4.5).
 - **Decompose**: `extractGlobAnnotation()` detects `> [!globs]` callouts in split content and extracts the glob patterns and `alwaysApply: false` flag back into frontmatter via `buildRawContent()`. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values. `stripHeadingNumber()` removes `N. ` prefixes from H2 headings in both filename and content. `writeAsDirectory({ numbered: true })` prefixes filenames with zero-padded indices (`01-`, `02-`).
 
 ### Data flow
@@ -33,6 +33,7 @@ Both subcommands accept an optional `[path]` argument (file or directory) that s
 
 - Keep interactive prompts in `cli.ts` or orchestration files, not in shared modules.
 - Call `formatMarkdown` at the orchestration layer, not inside `writeAsSingleFile` / `writeAsDirectory`.
+- Linting: ESLint (flat config in `eslint.config.js`). @eslint/markdown for `.md`/`.mdc`, typescript-eslint for `scripts/`. Run `pnpm lint`.
 
 ## 2. .mdc Frontmatter Conventions
 
@@ -155,7 +156,7 @@ In `decompose/index.ts`, step 5 (between section selection and output format):
 
 > [!globs] scripts/\*_/_.ts
 
-Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions.
+Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions. A **blank line between YAML frontmatter and body** is enforced by `ensureBlankLineAfterFrontmatter()` in `buildRawContent` (decompose) and `writeAsDirectory` (formats), so output always matches markdown convention and @eslint/markdown expectations.
 
 ### Integration points
 
@@ -165,7 +166,7 @@ Generated files are formatted with Prettier before writing. Formatting happens a
 
 ### `formatMarkdown(content, filepath?)`
 
-Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest `.prettierrc` via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
+Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest Prettier config (e.g. `prettier.config.js`) via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
 
 ### Why not in write functions
 
@@ -216,7 +217,7 @@ The LLM never generates rule content. It only provides metadata.
 
 > [!globs] scripts/**/**tests**/**/\*.test.ts
 
-161 tests across 10 files. Vitest. ESM imports with `.js` extension.
+174 tests across 12 files. Vitest. ESM imports with `.js` extension.
 
 ### Patterns
 
@@ -231,6 +232,7 @@ The LLM never generates rule content. It only provides metadata.
 ### Do
 
 - One `describe` per export, one `it` per behavior.
+- Prefer one test with multiple cases (`it.each` or sequential assertions) over many trivially similar tests.
 - Consolidate trivially similar tests into one (parameterized or sequential assertions).
 - `variants.test.ts`: pass `format: false` as 5th arg to skip Prettier in tests.
 

@@ -98,4 +98,4 @@ Copy `.env.example` to `.env` and fill in your key if you want to use LLM featur
 - [Decompose Command](decompose) — Detailed decompose workflow
 - [Sync Command](sync) — Push/pull/diff rules and skills with global config
 - [Tool Registry](tool-registry) — Supported tools, placeholders, configuration, and coding-tools layout
-- [Testing](testing/) — 191-test suite documentation
+- [Testing](testing/) — 174-test suite documentation

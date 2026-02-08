@@ -4,12 +4,16 @@ created: 2026-02-08
 modified: 2026-02-08
 ---
 
-# scanner.test.ts — 7 tests
+# scanner.test.ts — 8 tests
 
 **Source**: `scripts/shared/__tests__/scanner.test.ts`
 **Module under test**: `scripts/shared/scanner.ts`
 
-Tests filesystem-based tool detection and the three-tier agents repo resolution strategy. All tests use real filesystem operations against temp directories.
+Tests filesystem-based tool detection, rule order by filename prefix, and the three-tier agents repo resolution strategy. All tests use real filesystem operations against temp directories.
+
+## `sortRulesByFilenamePrefix` — 1 test
+
+Rules returned from `walkDir` / `scanDirectory` are ordered by leading numeric prefix (01-, 02-, …, 99-), so e.g. `99-a.mdc` appears after `01-b.mdc` and `02-c.mdc`.
 
 ## `detectTools` — 4 tests
 

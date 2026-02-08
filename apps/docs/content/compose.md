@@ -72,11 +72,11 @@ Select which tool to resolve placeholders for. This determines how `{{RULES_DIR}
 
 ### 4.5. Numbering Toggle
 
-Choose whether to add numbered prefixes to H2 section headings in the output (e.g., `## 1. Approach`, `## 2. Coding Conventions`). Defaults to yes. Already-numbered headings are skipped. Only H2 headings are numbered — H3+ are left untouched.
+Choose whether to add numbered prefixes to H2 section headings in the output (e.g., `## 1. Approach`, `## 2. Coding Conventions`). Defaults to yes. Section numbers are always sequential (1., 2., 3., …) by position in the composed document — any existing `N.` in a heading is stripped and replaced. So a rule file named `99-rule-name.mdc` with body `## 99. Rule Name` will appear as `## 5. Rule Name` if it is the 5th section. Only H2 headings are numbered — H3+ are left untouched.
 
 ### 5. Compose
 
-Rules are merged in order:
+Rules are merged in **filename prefix order** (01-, 02-, …, 99-), so e.g. `99-rule-name.mdc` appears last. The pipeline then:
 
 1. Strip YAML frontmatter from each rule's raw content
 2. Count `{{placeholder}}` occurrences across all rules
@@ -85,7 +85,7 @@ Rules are merged in order:
 5. Increment all heading levels by one per-section (H1 → H2, H2 → H3, etc.) to avoid multiple H1s in the combined output. Controlled by `incrementHeadings` option (default `true`). H6 headings are left unchanged (cannot exceed H6).
 6. Embed `> [!globs] patterns...` callouts after the first heading for scoped rules (`alwaysApply: false`). Rules with `alwaysApply: false` but no globs get an empty `> [!globs]` callout. Controlled by `embedGlobs` option (default `true`).
 7. Join sections with double newlines
-8. If numbering is enabled, add `N. ` prefixes to H2 headings via `addSectionNumbers()`
+8. If numbering is enabled, assign sequential `1.`, `2.`, `3.`, … to all H2 headings via `addSectionNumbers()` (strips any existing `N.` from heading text)
 
 Output shows line count, token estimate, and placeholder count.
 

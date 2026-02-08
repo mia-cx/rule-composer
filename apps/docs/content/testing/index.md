@@ -6,7 +6,7 @@ modified: 2026-02-08
 
 # Testing
 
-191 tests across 10 files covering placeholder resolution, rule composition, markdown splitting, schema validation, tree data structures, filesystem scanning, variant generation, decompose helpers, heading reconstruction, and end-to-end integration.
+174 tests across 12 files covering placeholder resolution, rule composition, markdown splitting, schema validation, tree data structures, filesystem scanning, variant generation, decompose helpers, heading reconstruction, sync, and end-to-end integration.
 
 ## Quick Reference
 
@@ -37,11 +37,11 @@ Tests use [Vitest](https://vitest.dev) with a root-level config in `vitest.confi
 scripts/
   shared/
     __tests__/
-      formats.test.ts         50 tests
-      schemas.test.ts         24 tests
+      formats.test.ts         43 tests
+      schemas.test.ts         16 tests
       tree-prompt.test.ts     10 tests
-      scanner.test.ts          7 tests
-      integration.test.ts     15 tests   ← golden-file integration tests
+      scanner.test.ts          8 tests   ← includes sortRulesByFilenamePrefix order test
+      integration.test.ts     12 tests   ← golden-file integration tests
       fixtures/                           ← test input and expected outputs
         input/AGENTS.md
         decompose-expected/*.mdc
@@ -49,13 +49,17 @@ scripts/
       generate-fixtures.ts               ← regenerates golden files
   compose/
     __tests__/
-      composer.test.ts        28 tests
-      variants.test.ts         9 tests
+      composer.test.ts        22 tests
+      variants.test.ts        10 tests
   decompose/
     __tests__/
-      splitter.test.ts        17 tests
-      decompose.test.ts       17 tests
-      matcher.test.ts         14 tests
+      splitter.test.ts        15 tests
+      decompose.test.ts       13 tests
+      matcher.test.ts        14 tests
+  sync/
+    __tests__/
+      sync.test.ts             3 tests
+      cursor-db.test.ts        8 tests
 ```
 
 ## Test Categories
@@ -73,16 +77,18 @@ scripts/
 
 Detailed documentation for each test file:
 
-- [formats.test.ts](testing/formats) — Tool registry, variable maps, placeholder resolution, file I/O (50 tests)
-- [composer.test.ts](testing/composer) — Rule composition, section numbering, and token estimation (28 tests)
-- [splitter.test.ts](testing/splitter) — Heading-based markdown splitting, heading number stripping (17 tests)
-- [schemas.test.ts](testing/schemas) — Zod schema validation for 4 schemas (24 tests)
+- [formats.test.ts](testing/formats) — Tool registry, variable maps, placeholder resolution, file I/O (43 tests)
+- [composer.test.ts](testing/composer) — Rule composition, section numbering, and token estimation (21 tests)
+- [splitter.test.ts](testing/splitter) — Heading-based markdown splitting, heading number stripping (15 tests)
+- [schemas.test.ts](testing/schemas) — Zod schema validation for 4 schemas (16 tests)
 - [tree-prompt.test.ts](testing/tree-prompt) — Tree building and selection extraction (10 tests)
-- [scanner.test.ts](testing/scanner) — Tool detection and agents repo resolution (7 tests)
-- [variants.test.ts](testing/variants) — `coding-tools/` directory generation (9 tests)
-- [decompose.test.ts](testing/decompose) — Prose extraction and frontmatter generation (17 tests)
+- [scanner.test.ts](testing/scanner) — Tool detection, agents repo resolution, rule order by filename prefix (8 tests)
+- [variants.test.ts](testing/variants) — `coding-tools/` directory generation (10 tests)
+- [decompose.test.ts](testing/decompose) — Prose extraction and frontmatter generation (13 tests)
 - [matcher.test.ts](testing/matcher) — Heading map parsing and content reconstruction (14 tests)
-- [integration.test.ts](testing/integration) — End-to-end pipeline tests with golden fixtures (15 tests)
+- [integration.test.ts](testing/integration) — End-to-end pipeline tests with golden fixtures (12 tests)
+- sync.test.ts — Sync command (3 tests)
+- cursor-db.test.ts — Cursor DB helpers (8 tests)
 
 ## Patterns
 
