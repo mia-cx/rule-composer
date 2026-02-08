@@ -1,5 +1,5 @@
-# Aider Rules
+# Aider Rules & Skills
 
-Pre-processed rules with Aider-specific paths and references resolved.
+Pre-processed rules and skills with Aider-specific paths and references resolved.
 
-Concatenate the contents and save as `CONVENTIONS.md` in your project.
+Concatenate the rule contents and save as `CONVENTIONS.md` in your project. Skills live in `skills/` (skill-name/SKILL.md).

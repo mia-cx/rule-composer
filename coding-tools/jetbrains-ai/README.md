@@ -1,5 +1,5 @@
-# JetBrains Rules
+# JetBrains Rules & Skills
 
-Pre-processed rules with JetBrains-specific paths and references resolved.
+Pre-processed rules and skills with JetBrains-specific paths and references resolved.
 
-Copy the contents of this directory to `.aiassistant/rules/` in your project.
+Copy the `rules/` and `skills/` directories to `.aiassistant/rules/` in your project (or merge with your existing rules/skills).

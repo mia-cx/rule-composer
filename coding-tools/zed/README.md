@@ -1,5 +1,5 @@
-# Zed Rules
+# Zed Rules & Skills
 
-Pre-processed rules with Zed-specific paths and references resolved.
+Pre-processed rules and skills with Zed-specific paths and references resolved.
 
-Concatenate the contents and save as `.rules` in your project.
+Concatenate the rule contents and save as `.rules` in your project. Skills live in `skills/` (skill-name/SKILL.md).
