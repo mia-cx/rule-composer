@@ -1,6 +1,7 @@
 ---
 description: AI-assisted decompose returns metadata only, content comes from source
 globs: scripts/decompose/**/*.ts
+alwaysApply: false
 ---
 
 # Decompose AI Design

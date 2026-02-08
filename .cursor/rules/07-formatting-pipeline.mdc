@@ -1,6 +1,7 @@
 ---
 description: Where and how Prettier formatting is applied to generated files
 globs: scripts/**/*.ts
+alwaysApply: false
 ---
 
 # Formatting Pipeline

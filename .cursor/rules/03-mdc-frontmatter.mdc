@@ -1,0 +1,28 @@
+---
+description: Frontmatter conventions for Cursor .mdc rule files
+globs: **/*.mdc
+alwaysApply: false
+---
+
+# .mdc Frontmatter Conventions
+
+Every `.mdc` rule file must have valid YAML frontmatter with these fields:
+
+## Required fields
+
+- `description` — One-line summary of what the rule covers
+- `alwaysApply` — Explicit boolean. `true` for project-wide rules (no globs), `false` for scoped rules (with globs)
+
+## Optional fields
+
+- `globs` — File patterns that trigger the rule. Unquoted, never wrapped in `"..."` or `[...]`
+  - Single: `globs: scripts/**/*.ts`
+  - Multiple: `globs: scripts/shared/formats.ts, scripts/decompose/index.ts`
+
+## Rules
+
+- Every rule with `globs` must set `alwaysApply: false`
+- Every rule without `globs` must set `alwaysApply: true`
+- Glob values are always unquoted — quotes cause literal matching, not pattern matching
+- Multiple globs use comma-separated values, not YAML arrays — `[...]` syntax does not parse correctly
+- Glob patterns starting with `*` (e.g., `**/*.mdc`) are invalid YAML (`*` is a YAML alias character). Cursor handles them natively, but `gray-matter` will crash. The CLI pre-quotes these via `quoteGlobs()` before parsing.

@@ -1,6 +1,7 @@
 ---
 description: Reverse placeholder detection — finding tool-specific paths and offering replacement
-globs: "scripts/shared/formats.ts,scripts/decompose/index.ts"
+alwaysApply: false
+globs: scripts/shared/formats.ts, scripts/decompose/index.ts
 ---
 
 # Placeholder Detection (Reverse Resolution)
@@ -14,6 +15,7 @@ globs: "scripts/shared/formats.ts,scripts/decompose/index.ts"
 ## How replacement works
 
 `replaceWithPlaceholders(content, toolId)` replaces concrete values with `{{VAR}}` syntax:
+
 1. Collects all non-empty variable values for the tool with length >= 4 (skips `.md`)
 2. Sorts by value length descending (longest first)
 3. Replaces globally, returns the count per variable
@@ -23,6 +25,7 @@ Longest-first prevents `RULE_EXAMPLE` (`.cursor/rules/my-convention.mdc`) from b
 ## CLI integration
 
 In `decompose/index.ts`, step 5 (between section selection and output format):
+
 1. Combine all split content, run `detectSourceTool`
 2. If a tool is detected, dry-run `replaceWithPlaceholders` for a preview
 3. Show the user what would change (value → placeholder, count)

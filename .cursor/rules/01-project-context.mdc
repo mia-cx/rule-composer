@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+This is **rule-composer**, a CLI tool for composing, converting, and optimizing AI coding agent rules across 10+ tools. It lives in a pnpm monorepo. The primary codebase is in `scripts/` (TypeScript, ESM, tsup build). Documentation is in `apps/docs/content/` (Quartz/Markdown).

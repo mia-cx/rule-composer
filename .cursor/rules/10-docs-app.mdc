@@ -1,6 +1,7 @@
 ---
 description: Quartz docs app conventions — Preact, not Svelte
-globs: "apps/docs/**"
+globs: apps/docs/**
+alwaysApply: false
 ---
 
 # Docs App

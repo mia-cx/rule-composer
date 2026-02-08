@@ -1,6 +1,7 @@
 ---
 description: "Placeholder resolution: {{VAR}} syntax, empty-var line removal, passthrough"
 globs: scripts/**/*.ts
+alwaysApply: false
 ---
 
 # Placeholder System

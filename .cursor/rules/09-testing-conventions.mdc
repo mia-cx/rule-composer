@@ -1,11 +1,12 @@
 ---
-description: Testing patterns used across the 132-test suite
+description: Testing patterns used across the 161-test suite
 globs: scripts/**/__tests__/**/*.test.ts
+alwaysApply: false
 ---
 
 # Testing Conventions
 
-132 tests across 10 files. Vitest. ESM imports with `.js` extension.
+161 tests across 10 files. Vitest. ESM imports with `.js` extension.
 
 ## Patterns
 
