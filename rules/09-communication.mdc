@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 
-## Communication
+# Communication
 
 - Be concise. Assume the user has context on their own question.
 - Explain trade-offs when multiple approaches exist, then pick one unless the user should decide.

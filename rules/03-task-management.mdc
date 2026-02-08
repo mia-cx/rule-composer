@@ -5,7 +5,7 @@ description: >-
   MUST include task-specific items AND these
 ---
 
-## Task Management
+# Task Management
 
 **For every non-trivial task, create a todo list before starting.** The list MUST include task-specific items AND these four standing items. Each one MUST appear as an explicit todo — mark it complete with a note, or mark it N/A with a reason. Silently omitting any of them is a failure mode.
 

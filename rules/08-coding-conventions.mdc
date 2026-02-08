@@ -2,7 +2,7 @@
 alwaysApply: true
 ---
 
-## Coding Conventions
+# Coding Conventions
 
 - **Early returns** — Guard clauses first, reduce nesting.
 - **`const` arrow functions** — `const toggle = () => {}` over `function`. Define types.

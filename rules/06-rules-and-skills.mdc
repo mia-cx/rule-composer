@@ -5,7 +5,7 @@ description: >-
   conversation that touches architecture, debugging, or
 ---
 
-## Rules and Skills
+# Rules and Skills
 
 **CRITICAL — You MUST create rules and skills as you work.** Every conversation that touches architecture, debugging, or implementation MUST leave behind captured knowledge.
 
@@ -13,7 +13,7 @@ description: >-
 
 **Skills** (`{{SKILLS_DIR}}*/SKILL.md`) — Repeatable multi-step workflows. Use `disable-model-invocation: true` for manual-only invocation.
 
-### Mandatory triggers
+## Mandatory triggers
 
 Create a **rule** when you: make an architectural decision, discover a non-obvious gotcha, establish a repeatable pattern, or resolve a recurring bug.
 

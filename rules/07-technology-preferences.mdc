@@ -5,7 +5,7 @@ description: >-
   for components. TailwindCSS for styling. na
 ---
 
-## Technology Preferences
+# Technology Preferences
 
 **Frontend:** SvelteKit (Svelte 5, Vite) by default. shadcn-svelte + Bits-UI for components. TailwindCSS for styling. nanostores for global state. Svelte 5 runes (`$state`, `$derived`, `$effect`) for local state — no Svelte 4 stores. Exploring: Astro, React, Next.js.
 
