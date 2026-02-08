@@ -1,0 +1,33 @@
+---
+description: Sync CLI and coding-tools variant layout (rules/ and skills/)
+globs: scripts/sync/** scripts/compose/variants.ts coding-tools/**
+alwaysApply: false
+---
+
+# Sync Command and Coding-Tools Layout
+
+## Sync command
+
+Use `pnpm sync push|pull|diff` (or `tsx scripts/index.ts sync`) to sync repo `rules/` and `skills/` with the active tool’s global config (e.g. `~/.cursor/rules/`, `~/.cursor/skills/`).
+
+- **push** — repo → global (deploy repo contents)
+- **pull** — global → repo (capture changes from global)
+- **diff** — show differences only (no writes)
+
+Options: `--repo <path>`, `--tool <id>`, `--yes` (skip confirmation before destructive sync), `--cursor-db` (Cursor only, see below). Default tool is `cursor`; only tools with `GLOBAL_RULES` or `GLOBAL_SKILLS` in `TOOL_VARIABLES` are valid.
+
+Implementation: `scripts/sync/index.ts` (rsync with `--delete` for push/pull; `diff -rq` for diff). The `sync-agent-config` skill is a pointer to this CLI — do not duplicate rsync instructions in the skill.
+
+### Cursor User Rules (--cursor-db)
+
+Cursor’s **User Rules** (Settings → Rules for AI) are stored in SQLite, not in `~/.cursor/rules/`. Key: `aicontext.personalContext` in `ItemTable` of `state.vscdb` (paths: macOS `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, Linux `~/.config/Cursor/User/globalStorage/state.vscdb`, Windows `%APPDATA%\Cursor\User\globalStorage\state.vscdb`). With `--cursor-db`, sync **push** composes repo `rules/` into one blob and writes to the DB; **pull** reads from the DB and writes `rules/cursor-user-rules.md`; **diff** compares composed repo content to DB content. Implementation: `scripts/sync/cursor-db.ts` (better-sqlite3). Close Cursor before writing to the DB. **If rules don’t show in Settings:** run `pnpm sync inspect --cursor-db` to list ItemTable keys and confirm our key is present; in many Cursor versions User Rules are synced to the cloud and the Settings UI may not read the local DB, so local writes might not appear.
+
+## Coding-tools variant layout
+
+Generated output under `coding-tools/<toolId>/`:
+
+- **Rules**: `coding-tools/<toolId>/rules/` — one file per rule, tool-specific extension (e.g. `.mdc`, `.md`, `.instructions.md`).
+- **Skills**: `coding-tools/<toolId>/skills/<skill-name>/SKILL.md` — preserve directory structure; always `SKILL.md` (no tool-specific extension for skills).
+- **README**: `coding-tools/<toolId>/README.md` — instructs copying `rules/` and `skills/` into the project’s tool config.
+
+Do not flatten skills to `skill-name-SKILL.mdc`; keep the `skill-name/SKILL.md` layout per Cursor’s Agent Skills convention.

@@ -35,33 +35,49 @@ Use this structure, dropping sections that don't apply:
 
 ```markdown
 ## Approach
+
 <!-- How to interact: plan-first vs dive-in, mode preferences -->
 
 ## Problem-Solving Protocol
+
 ### Before Writing Code
+
 ### When Debugging
+
 ### When Building Features
+
 ### Testing & Verification
+
 <!-- Optional: Dependabot / Security Branches if relevant -->
 
 ## Workspace Conventions
+
 ### Standard Project Shape
+
 ### New Project Setup
+
 ### Adding an App
+
 ### Rules and Skills
 
 ## Technology Preferences
+
 ### Frontend
+
 ### Backend & Data
+
 ### Tooling
 
 ## Coding Conventions
+
 ### UI Library Conventions (if applicable)
 
 ## Communication
+
 ## Long Conversations
 
 ## Reference Links
+
 <!-- Direct doc URLs the agent should fetch instead of web searching -->
 ```
 

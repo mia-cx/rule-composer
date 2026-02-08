@@ -19,6 +19,9 @@ pnpm dlx rule-composer compose [path] [-o output]
 
 # Decompose: split a monolithic rules file into modular rules
 pnpm dlx rule-composer decompose [path] [-o output-dir]
+
+# Sync: push/pull/diff repo rules/ and skills/ with global config (e.g. ~/.cursor/)
+pnpm dlx rule-composer sync [push|pull|diff] [--repo path] [--tool id] [--yes]
 ```
 
 The optional `[path]` argument lets you skip auto-detection:
@@ -51,7 +54,8 @@ cp .env.example .env
 pnpm dev            # Interactive
 pnpm compose [path] [-o output]     # Compose command
 pnpm decompose [path] [-o output]   # Decompose command
-pnpm build-variants # Regenerate coding-tools/
+pnpm sync [push|pull|diff]          # Sync rules/skills with global config
+pnpm build-variants                 # Regenerate coding-tools/
 ```
 
 ## Commands
@@ -72,6 +76,18 @@ Detects monolithic rule files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.), 
 pnpm dlx rule-composer decompose
 ```
 
+### Sync
+
+Syncs the repo’s `rules/` and `skills/` with the active tool’s global config (e.g. `~/.cursor/rules/`, `~/.cursor/skills/`). Use **push** (repo → global), **pull** (global → repo), or **diff** (show differences only). Options: `--repo <path>`, `--tool <id>`, `--yes` to skip confirmation. For Cursor, `--cursor-db` syncs rules to/from the **User Rules** SQLite DB (Settings → Rules for AI) instead of `~/.cursor/rules/`.
+
+**Note:** Cursor has no public API for User Rules; only the local `state.vscdb` is scriptable, and the Settings UI may read from the cloud. For reliable, version-controlled rules, use project rules (`.cursor/rules/`) or AGENTS.md.
+
+```bash
+pnpm sync push
+pnpm sync pull --yes
+pnpm sync diff
+```
+
 ## Scripts
 
 | Script                   | Description                                   |
@@ -79,6 +95,7 @@ pnpm dlx rule-composer decompose
 | `pnpm dev`               | Run interactively (pick compose or decompose) |
 | `pnpm compose [path]`    | Compose rules for a target tool               |
 | `pnpm decompose [path]`  | Decompose a monolithic rules file             |
+| `pnpm sync` (push, pull, diff) | Sync rules/skills with global config    |
 | `pnpm build`             | Build for distribution (tsup)                 |
 | `pnpm build-variants`    | Regenerate `coding-tools/` directories        |
 | `pnpm test`              | Run all 191 tests                             |
@@ -103,7 +120,8 @@ Full documentation is available in two places:
 - [Overview](apps/docs/content/index.md)
 - [Compose Command](apps/docs/content/compose.md)
 - [Decompose Command](apps/docs/content/decompose.md)
-- [Tool Registry](apps/docs/content/tool-registry.md) — supported tools, placeholders, variable maps
+- [Sync Command](apps/docs/content/sync.md) — push/pull/diff rules and skills with global config
+- [Tool Registry](apps/docs/content/tool-registry.md) — supported tools, placeholders, variable maps, coding-tools layout
 - [Testing](apps/docs/content/testing/index.md) — 191-test suite across 10 files
 
 **Online** (deployed):
@@ -117,7 +135,7 @@ Full documentation is available in two places:
 ```
 rules/                 Source rules with {{placeholders}}
 skills/                Source skills with {{placeholders}}
-coding-tools/          Generated tool-specific variants (do not edit)
+coding-tools/          Generated tool-specific variants: <toolId>/rules/, <toolId>/skills/<skill-name>/SKILL.md (do not edit)
 scripts/
   index.ts             CLI entry point
   compose/             Compose command (composer, variants, LLM prompt)
