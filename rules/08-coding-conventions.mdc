@@ -1,6 +1,7 @@
 ---
 alwaysApply: true
 ---
+
 ## Coding Conventions
 
 - **Early returns** — Guard clauses first, reduce nesting.

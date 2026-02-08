@@ -4,11 +4,12 @@ description: >-
   The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and
   packages are **git submodules** — each live
 ---
+
 ## Workspace Conventions
 
 The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and packages are **git submodules** — each lives in its own repository (namespaced under the same GitHub org) and is added to the monorepo via `git submodule add`. Only the default template scaffolding (config, docs, etc.) lives directly in the monorepo repo.
 
-### Standard Monorepo Shape
+## Standard Monorepo Shape
 
 ```
 apps/
@@ -24,7 +25,7 @@ packages/
 
 - For Cloudflare SvelteKit apps, use the `PRIVATE_` prefix for server-only environment variables (`env.privatePrefix: 'PRIVATE_'` in svelte.config).
 
-### New Project Setup
+## New Project Setup
 
 When the user is creating a new monorepo, walk them through these steps:
 
@@ -33,7 +34,7 @@ When the user is creating a new monorepo, walk them through these steps:
 3. **Set up the docs app.** Tell the user to run `npx quartz create` inside `apps/docs/`. Quartz requires manual initialization.
 4. **Set up shared configs** in `packages/config/`.
 
-### Adding an App
+## Adding an App
 
 When adding an app or package to an existing monorepo:
 
