@@ -47,13 +47,13 @@ Review the generated files in `fixtures/decompose-expected/` and `fixtures/compo
 pnpm test
 ```
 
-All 132 tests should pass.
+All tests should pass (run `pnpm test`).
 
 ## File locations
 
-| Path | Purpose |
-|------|---------|
-| `scripts/shared/__tests__/fixtures/input/AGENTS.md` | Hand-written input (edit this to change test data) |
-| `scripts/shared/__tests__/fixtures/decompose-expected/` | Golden decomposed `.mdc` files |
-| `scripts/shared/__tests__/fixtures/compose-expected/` | Golden composed `.md` files |
-| `scripts/shared/__tests__/generate-fixtures.ts` | The generator script |
+| Path                                                    | Purpose                                            |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `scripts/shared/__tests__/fixtures/input/AGENTS.md`     | Hand-written input (edit this to change test data) |
+| `scripts/shared/__tests__/fixtures/decompose-expected/` | Golden decomposed `.mdc` files                     |
+| `scripts/shared/__tests__/fixtures/compose-expected/`   | Golden composed `.md` files                        |
+| `scripts/shared/__tests__/generate-fixtures.ts`         | The generator script                               |
