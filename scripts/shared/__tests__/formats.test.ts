@@ -11,6 +11,7 @@ import {
 	writeAsSingleFile,
 	extractGlobAnnotation,
 	unquoteGlobs,
+	ensureBlankLineAfterFrontmatter,
 	TOOL_REGISTRY,
 	TOOL_VARIABLES,
 } from "../formats.js";
@@ -25,14 +26,10 @@ describe("TOOL_REGISTRY", () => {
 		}
 	});
 
-	it("cursor config has correct values", () => {
-		const cursor = TOOL_REGISTRY.cursor;
-		expect(cursor.directories).toContain(".cursor/rules/");
-		expect(cursor.extension).toBe(".mdc");
-		expect(cursor.hasFrontmatter).toBe(true);
-	});
-
-	it("claude config has no frontmatter", () => {
+	it("tool-specific config: cursor has .cursor/rules/.mdc and frontmatter; claude has no frontmatter", () => {
+		expect(TOOL_REGISTRY.cursor.directories).toContain(".cursor/rules/");
+		expect(TOOL_REGISTRY.cursor.extension).toBe(".mdc");
+		expect(TOOL_REGISTRY.cursor.hasFrontmatter).toBe(true);
 		expect(TOOL_REGISTRY.claude.hasFrontmatter).toBe(false);
 	});
 });
@@ -45,20 +42,34 @@ describe("TOOL_VARIABLES", () => {
 		}
 	});
 
-	it("cursor has all expected keys", () => {
-		const vars = TOOL_VARIABLES.cursor;
-		expect(vars["RULES_DIR"]).toBe(".cursor/rules/");
-		expect(vars["RULES_EXT"]).toBe(".mdc");
-		expect(vars["SKILLS_DIR"]).toBe(".cursor/skills/");
-		expect(vars["GLOBAL_RULES"]).toBe("~/.cursor/rules/");
-		expect(vars["GLOBAL_SKILLS"]).toBe("~/.cursor/skills/");
+	it("cursor has all expected keys; claude has empty skills-related vars", () => {
+		const cursor = TOOL_VARIABLES.cursor;
+		expect(cursor["RULES_DIR"]).toBe(".cursor/rules/");
+		expect(cursor["RULES_EXT"]).toBe(".mdc");
+		expect(cursor["SKILLS_DIR"]).toBe(".cursor/skills/");
+		expect(cursor["GLOBAL_RULES"]).toBe("~/.cursor/rules/");
+		expect(cursor["GLOBAL_SKILLS"]).toBe("~/.cursor/skills/");
+		expect(TOOL_VARIABLES.claude["SKILLS_DIR"]).toBe("");
+		expect(TOOL_VARIABLES.claude["SKILLS_EXT"]).toBe("");
+		expect(TOOL_VARIABLES.claude["GLOBAL_SKILLS"]).toBe("");
+	});
+});
+
+describe("ensureBlankLineAfterFrontmatter", () => {
+	it("inserts blank line when closing --- is directly followed by content", () => {
+		const input = "---\nalwaysApply: true\n---\n## Heading\n\nBody.";
+		const result = ensureBlankLineAfterFrontmatter(input);
+		expect(result).toMatch(/---\r?\n\r?\n##/);
+		expect(result).toBe("---\nalwaysApply: true\n---\n\n## Heading\n\nBody.");
 	});
 
-	it("claude has empty skills-related vars", () => {
-		const vars = TOOL_VARIABLES.claude;
-		expect(vars["SKILLS_DIR"]).toBe("");
-		expect(vars["SKILLS_EXT"]).toBe("");
-		expect(vars["GLOBAL_SKILLS"]).toBe("");
+	it("leaves content unchanged when blank line already present or no frontmatter", () => {
+		expect(ensureBlankLineAfterFrontmatter("---\nalwaysApply: true\n---\n\n## Heading\n\nBody.")).toBe(
+			"---\nalwaysApply: true\n---\n\n## Heading\n\nBody.",
+		);
+		expect(ensureBlankLineAfterFrontmatter("## Only heading\n\nNo frontmatter.")).toBe(
+			"## Only heading\n\nNo frontmatter.",
+		);
 	});
 });
 
@@ -89,10 +100,11 @@ describe("resolvePlaceholders", () => {
 		expect(lines[1]).toBe("Line 3: no placeholders");
 	});
 
-	it("keeps unknown placeholders as-is", () => {
-		const input = "Unknown: {{DOES_NOT_EXIST}}";
-		const result = resolvePlaceholders(input, "cursor");
-		expect(result).toBe("Unknown: {{DOES_NOT_EXIST}}");
+	it("keeps unknown placeholders as-is and leaves content with no placeholders unchanged", () => {
+		expect(resolvePlaceholders("Unknown: {{DOES_NOT_EXIST}}", "cursor")).toBe("Unknown: {{DOES_NOT_EXIST}}");
+		expect(resolvePlaceholders("No placeholders here\nJust plain text", "cursor")).toBe(
+			"No placeholders here\nJust plain text",
+		);
 	});
 
 	it("handles multiple placeholders on the same line", () => {
@@ -106,12 +118,6 @@ describe("resolvePlaceholders", () => {
 		expect(resolvePlaceholders("{{SKILLS_DIR}} and {{GLOBAL_SKILLS}} both", "copilot")).toBe("");
 		// Mixed: TOOL_NAME is non-empty but SKILLS_DIR is empty → line still removed
 		expect(resolvePlaceholders("{{TOOL_NAME}} skills: {{SKILLS_DIR}}", "copilot")).toBe("");
-	});
-
-	it("handles content with no placeholders", () => {
-		const input = "No placeholders here\nJust plain text";
-		const result = resolvePlaceholders(input, "cursor");
-		expect(result).toBe(input);
 	});
 
 	it("removes many lines for tools with mostly empty vars (zed)", () => {
@@ -128,31 +134,24 @@ describe("resolvePlaceholders", () => {
 		expect(lines[0]).toBe("Static line");
 		expect(lines[1]).toBe("Another static line");
 	});
+
 });
 
 describe("detectSourceTool", () => {
-	it("detects cursor from .cursor/rules/ paths", () => {
-		const content = "Put rules in `.cursor/rules/` and skills in `.cursor/skills/`.";
-		expect(detectSourceTool(content)).toBe("cursor");
+	it.each([
+		["cursor", "Put rules in `.cursor/rules/` and skills in `.cursor/skills/`."],
+		["claude", "Store rules in `.claude/rules/` for Claude Code."],
+		["copilot", "Place instructions in `.github/instructions/` with `.instructions.md` extension."],
+	])("detects %s from tool-specific paths", (tool, content) => {
+		expect(detectSourceTool(content)).toBe(tool);
 	});
 
-	it("detects claude from .claude/rules/ paths", () => {
-		const content = "Store rules in `.claude/rules/` for Claude Code.";
-		expect(detectSourceTool(content)).toBe("claude");
-	});
-
-	it("detects copilot from .github/instructions/ paths", () => {
-		const content = "Place instructions in `.github/instructions/` with `.instructions.md` extension.";
-		expect(detectSourceTool(content)).toBe("copilot");
-	});
-
-	it("returns null when no tool-specific paths found", () => {
-		const content = "This is a generic document with no tool-specific paths.";
-		expect(detectSourceTool(content)).toBeNull();
+	it("returns null when no tool paths found or values shorter than 4 chars", () => {
+		expect(detectSourceTool("This is a generic document with no tool-specific paths.")).toBeNull();
+		expect(detectSourceTool("Use .md files for documentation.")).toBeNull();
 	});
 
 	it("picks the tool with the most/strongest matches", () => {
-		// Cursor has more signals: RULES_DIR, SKILLS_DIR, GLOBAL_RULES, GLOBAL_SKILLS
 		const content = [
 			"Rules: .cursor/rules/",
 			"Skills: .cursor/skills/",
@@ -160,12 +159,6 @@ describe("detectSourceTool", () => {
 			"Also mentioned: .claude/rules/",
 		].join("\n");
 		expect(detectSourceTool(content)).toBe("cursor");
-	});
-
-	it("ignores values shorter than 4 characters", () => {
-		// ".md" is 3 chars — should not trigger claude detection
-		const content = "Use .md files for documentation.";
-		expect(detectSourceTool(content)).toBeNull();
 	});
 });
 
@@ -385,7 +378,7 @@ describe("writeAsDirectory", () => {
 
 		await writeAsDirectory(rules, outDir, "claude");
 
-		const { readFile: rf, access: acc } = await import("node:fs/promises");
+		const { readFile: rf } = await import("node:fs/promises");
 
 		// Rule with directory should be in subdirectory
 		const subContent = await rf(join(outDir, "testing", "unit-tests.md"), "utf-8");
@@ -456,7 +449,7 @@ describe("writeAsDirectory", () => {
 
 		await writeAsDirectory(rules, outDir, "claude", { numbered: true });
 
-		const { readFile: rf, access: acc } = await import("node:fs/promises");
+		const { readFile: rf } = await import("node:fs/promises");
 
 		// Verify filenames have zero-padded prefixes
 		const f1 = await rf(join(outDir, "01-approach.md"), "utf-8");
@@ -516,35 +509,29 @@ describe("writeAsDirectory", () => {
 });
 
 describe("extractGlobAnnotation", () => {
-	it("extracts glob patterns from callout", () => {
-		const content = "## Testing\n\n> [!globs] scripts/**/*.test.ts\n\nContent.";
-		const result = extractGlobAnnotation(content);
-		expect(result.globs).toBe("scripts/**/*.test.ts");
-		expect(result.alwaysApply).toBe(false);
-		expect(result.content).toBe("## Testing\n\nContent.");
+	it("extracts glob patterns from callout (single and comma-separated)", () => {
+		const r1 = extractGlobAnnotation("## Testing\n\n> [!globs] scripts/**/*.test.ts\n\nContent.");
+		expect(r1.globs).toBe("scripts/**/*.test.ts");
+		expect(r1.alwaysApply).toBe(false);
+		expect(r1.content).toBe("## Testing\n\nContent.");
+
+		const r2 = extractGlobAnnotation("## Rule\n\n> [!globs] src/*.ts, lib/*.ts\n\nContent.");
+		expect(r2.globs).toBe("src/*.ts, lib/*.ts");
+		expect(r2.alwaysApply).toBe(false);
 	});
 
-	it("extracts multiple comma-separated globs", () => {
-		const content = "## Rule\n\n> [!globs] src/*.ts, lib/*.ts\n\nContent.";
-		const result = extractGlobAnnotation(content);
-		expect(result.globs).toBe("src/*.ts, lib/*.ts");
-		expect(result.alwaysApply).toBe(false);
-	});
+	it("handles empty callout (scoped, no globs) and no callout (alwaysApply true)", () => {
+		const emptyCallout = "## Scoped\n\n> [!globs]\n\nContent.";
+		const r1 = extractGlobAnnotation(emptyCallout);
+		expect(r1.globs).toBeUndefined();
+		expect(r1.alwaysApply).toBe(false);
+		expect(r1.content).toBe("## Scoped\n\nContent.");
 
-	it("handles empty callout (scoped with no globs)", () => {
-		const content = "## Scoped\n\n> [!globs]\n\nContent.";
-		const result = extractGlobAnnotation(content);
-		expect(result.globs).toBeUndefined();
-		expect(result.alwaysApply).toBe(false);
-		expect(result.content).toBe("## Scoped\n\nContent.");
-	});
-
-	it("returns alwaysApply: true when no callout found", () => {
-		const content = "## Global Rule\n\nContent.";
-		const result = extractGlobAnnotation(content);
-		expect(result.globs).toBeUndefined();
-		expect(result.alwaysApply).toBe(true);
-		expect(result.content).toBe(content);
+		const noCallout = "## Global Rule\n\nContent.";
+		const r2 = extractGlobAnnotation(noCallout);
+		expect(r2.globs).toBeUndefined();
+		expect(r2.alwaysApply).toBe(true);
+		expect(r2.content).toBe(noCallout);
 	});
 
 	it("handles callout at the start of content (no heading)", () => {
@@ -557,24 +544,16 @@ describe("extractGlobAnnotation", () => {
 });
 
 describe("unquoteGlobs", () => {
-	it("removes single quotes from glob values", () => {
-		const input = "---\nglobs: 'scripts/**/*.ts'\n---";
-		expect(unquoteGlobs(input)).toBe("---\nglobs: scripts/**/*.ts\n---");
+	it("removes single and double quotes from glob values", () => {
+		expect(unquoteGlobs("---\nglobs: 'scripts/**/*.ts'\n---")).toBe("---\nglobs: scripts/**/*.ts\n---");
+		expect(unquoteGlobs('---\nglobs: "scripts/**/*.ts"\n---')).toBe("---\nglobs: scripts/**/*.ts\n---");
 	});
 
-	it("removes double quotes from glob values", () => {
-		const input = '---\nglobs: "scripts/**/*.ts"\n---';
-		expect(unquoteGlobs(input)).toBe("---\nglobs: scripts/**/*.ts\n---");
-	});
-
-	it("leaves already-unquoted globs unchanged", () => {
-		const input = "---\nglobs: scripts/shared/formats.ts\n---";
-		expect(unquoteGlobs(input)).toBe(input);
-	});
-
-	it("leaves content without globs unchanged", () => {
-		const input = "---\ndescription: A rule\nalwaysApply: true\n---";
-		expect(unquoteGlobs(input)).toBe(input);
+	it("leaves content without quoted globs unchanged", () => {
+		const unquoted = "---\nglobs: scripts/shared/formats.ts\n---";
+		expect(unquoteGlobs(unquoted)).toBe(unquoted);
+		const noGlobs = "---\ndescription: A rule\nalwaysApply: true\n---";
+		expect(unquoteGlobs(noGlobs)).toBe(noGlobs);
 	});
 });
 
@@ -589,41 +568,25 @@ describe("readRule glob extraction", () => {
 		await rm(tmpDir, { recursive: true, force: true });
 	});
 
-	it("extracts globs and alwaysApply from .mdc frontmatter", async () => {
-		const filePath = join(tmpDir, "scoped.mdc");
-		const content = [
-			"---",
-			"description: Scoped rule",
-			"alwaysApply: false",
-			"globs: scripts/**/*.ts",
-			"---",
-			"",
-			"## Scoped Rule",
-			"",
-			"Content.",
-		].join("\n");
-		await writeFile(filePath, content, "utf-8");
+	it("extracts globs from .mdc frontmatter (single and multiple comma-separated)", async () => {
+		const scopedPath = join(tmpDir, "scoped.mdc");
+		await writeFile(
+			scopedPath,
+			["---", "description: Scoped rule", "alwaysApply: false", "globs: scripts/**/*.ts", "---", "", "## Scoped Rule", "", "Content."].join("\n"),
+			"utf-8",
+		);
+		const rule1 = await readRule(scopedPath, "cursor");
+		expect(rule1.globs).toBe("scripts/**/*.ts");
+		expect(rule1.alwaysApply).toBe(false);
 
-		const rule = await readRule(filePath, "cursor");
-		expect(rule.globs).toBe("scripts/**/*.ts");
-		expect(rule.alwaysApply).toBe(false);
-	});
-
-	it("extracts multiple comma-separated globs as a single string", async () => {
-		const filePath = join(tmpDir, "multi-glob.mdc");
-		const content = [
-			"---",
-			"description: Multi-glob rule",
-			"alwaysApply: false",
-			"globs: src/*.ts, lib/*.ts",
-			"---",
-			"",
-			"Content.",
-		].join("\n");
-		await writeFile(filePath, content, "utf-8");
-
-		const rule = await readRule(filePath, "cursor");
-		expect(rule.globs).toBe("src/*.ts, lib/*.ts");
+		const multiPath = join(tmpDir, "multi-glob.mdc");
+		await writeFile(
+			multiPath,
+			["---", "description: Multi-glob rule", "alwaysApply: false", "globs: src/*.ts, lib/*.ts", "---", "", "Content."].join("\n"),
+			"utf-8",
+		);
+		const rule2 = await readRule(multiPath, "cursor");
+		expect(rule2.globs).toBe("src/*.ts, lib/*.ts");
 	});
 
 	it("returns undefined globs for rules without globs", async () => {

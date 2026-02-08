@@ -101,8 +101,8 @@ describe("splitByHeadings", () => {
 		expect(sections[0]!.content).not.toMatch(/\n\n$/);
 	});
 
-	it("strips numbered prefixes from H2 headings in filenames", () => {
-		const markdown = [
+	it("strips numbered prefixes from filenames and content when present, leaves unnumbered headings unchanged", () => {
+		const numbered = [
 			"## 1. Approach",
 			"",
 			"Plan first.",
@@ -111,48 +111,31 @@ describe("splitByHeadings", () => {
 			"",
 			"Use early returns.",
 		].join("\n");
+		const sections1 = splitByHeadings(numbered);
+		expect(sections1).toHaveLength(2);
+		expect(sections1[0]!.name).toBe("approach");
+		expect(sections1[1]!.name).toBe("coding-conventions");
 
-		const sections = splitByHeadings(markdown);
-		expect(sections).toHaveLength(2);
-		expect(sections[0]!.name).toBe("approach");
-		expect(sections[1]!.name).toBe("coding-conventions");
-	});
+		const contentNumbered = ["## 3. Testing & Verification", "", "Write tests."].join("\n");
+		const sections2 = splitByHeadings(contentNumbered);
+		expect(sections2[0]!.content).toContain("## Testing & Verification");
+		expect(sections2[0]!.content).not.toContain("## 3.");
 
-	it("strips numbered prefixes from content headings", () => {
-		const markdown = ["## 3. Testing & Verification", "", "Write tests."].join("\n");
-
-		const sections = splitByHeadings(markdown);
-		expect(sections[0]!.content).toContain("## Testing & Verification");
-		expect(sections[0]!.content).not.toContain("## 3.");
-	});
-
-	it("handles headings that are not numbered (no-op)", () => {
-		const markdown = ["## Approach", "", "Content."].join("\n");
-
-		const sections = splitByHeadings(markdown);
-		expect(sections[0]!.name).toBe("approach");
-		expect(sections[0]!.content).toContain("## Approach");
+		const unnumbered = ["## Approach", "", "Content."].join("\n");
+		const sections3 = splitByHeadings(unnumbered);
+		expect(sections3[0]!.name).toBe("approach");
+		expect(sections3[0]!.content).toContain("## Approach");
 	});
 });
 
 describe("stripHeadingNumber", () => {
-	it("strips single-digit prefix", () => {
-		expect(stripHeadingNumber("1. Approach")).toBe("Approach");
-	});
-
-	it("strips multi-digit prefix", () => {
-		expect(stripHeadingNumber("12. Coding Conventions")).toBe("Coding Conventions");
-	});
-
-	it("returns unchanged text when no prefix", () => {
-		expect(stripHeadingNumber("Approach")).toBe("Approach");
-	});
-
-	it("does not strip numbers that are not followed by a dot and space", () => {
-		expect(stripHeadingNumber("100 Tips")).toBe("100 Tips");
-	});
-
-	it("strips zero-padded prefix", () => {
-		expect(stripHeadingNumber("03. Testing")).toBe("Testing");
+	it.each([
+		["1. Approach", "Approach"],
+		["12. Coding Conventions", "Coding Conventions"],
+		["Approach", "Approach"],
+		["100 Tips", "100 Tips"],
+		["03. Testing", "Testing"],
+	])("strips N. prefix when present, leaves rest unchanged (%s → %s)", (input, expected) => {
+		expect(stripHeadingNumber(input)).toBe(expected);
 	});
 });

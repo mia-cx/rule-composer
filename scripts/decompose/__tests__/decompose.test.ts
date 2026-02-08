@@ -11,27 +11,23 @@ describe("extractProseDescription", () => {
 		expect(extractProseDescription(content)).toBe("Plan first, confirm, then implement.");
 	});
 
-	it("returns empty string when first content is a table", () => {
-		const content = [
+	it("returns empty string when first content is a table or a list (any syntax)", () => {
+		const tableContent = [
 			"## Technology Preferences",
 			"",
 			"| Preference | Detail |",
 			"| --- | --- |",
 			"| Primary | SvelteKit |",
 		].join("\n");
+		expect(extractProseDescription(tableContent)).toBe("");
 
-		expect(extractProseDescription(content)).toBe("");
-	});
-
-	it("returns empty string when first content is a list (any syntax)", () => {
-		const cases = [
+		const listCases = [
 			["## Items", "", "- First item", "- Second item"],
 			["## Items", "", "* First item", "* Second item"],
 			["## Items", "", "+ First item"],
 			["## Steps", "", "1. First step", "2. Second step"],
 		];
-
-		for (const lines of cases) {
+		for (const lines of listCases) {
 			expect(extractProseDescription(lines.join("\n"))).toBe("");
 		}
 	});
@@ -54,14 +50,11 @@ describe("extractProseDescription", () => {
 		expect(extractProseDescription("")).toBe("");
 	});
 
-	it("handles content with no heading prefix", () => {
-		const content = "Just some prose without any heading.";
-		expect(extractProseDescription(content)).toBe("Just some prose without any heading.");
-	});
-
-	it("trims whitespace from the extracted line", () => {
-		const content = "## Section\n\n   Indented prose.  ";
-		expect(extractProseDescription(content)).toBe("Indented prose.");
+	it("handles content with no heading prefix and trims whitespace from extracted line", () => {
+		expect(extractProseDescription("Just some prose without any heading.")).toBe(
+			"Just some prose without any heading.",
+		);
+		expect(extractProseDescription("## Section\n\n   Indented prose.  ")).toBe("Indented prose.");
 	});
 });
 
@@ -74,6 +67,7 @@ describe("buildRawContent", () => {
 		expect(parsed.data["alwaysApply"]).toBe(true);
 		expect(parsed.data["description"]).toBe("Plan first.");
 		expect(parsed.content.trim()).toBe(body);
+		expect(result).toMatch(/---\r?\n\r?\n#/m);
 	});
 
 	it("omits description from frontmatter when empty", () => {
@@ -140,27 +134,15 @@ describe("buildRawContent", () => {
 		expect(parsed.data["description"]).toBe("Content.");
 	});
 
-	it("sets alwaysApply from options", () => {
+	it("frontmatter options and defaults: alwaysApply from options, default true when omitted, omits globs when not provided", () => {
 		const body = "## Rule\n\nContent.";
-		const result = buildRawContent(body, "", true, { alwaysApply: false });
+		const withFalse = buildRawContent(body, "", true, { alwaysApply: false });
+		expect(matter(withFalse).data["alwaysApply"]).toBe(false);
 
-		const parsed = matter(result);
-		expect(parsed.data["alwaysApply"]).toBe(false);
-	});
+		const noOptions = buildRawContent(body, "", true);
+		expect(matter(noOptions).data["alwaysApply"]).toBe(true);
 
-	it("defaults alwaysApply to true when options omitted", () => {
-		const body = "## Rule\n\nContent.";
-		const result = buildRawContent(body, "", true);
-
-		const parsed = matter(result);
-		expect(parsed.data["alwaysApply"]).toBe(true);
-	});
-
-	it("omits globs from frontmatter when not provided", () => {
-		const body = "## Rule\n\nContent.";
-		const result = buildRawContent(body, "", true, { alwaysApply: true });
-
-		const parsed = matter(result);
-		expect(parsed.data).not.toHaveProperty("globs");
+		const noGlobs = buildRawContent(body, "", true, { alwaysApply: true });
+		expect(matter(noGlobs).data).not.toHaveProperty("globs");
 	});
 });

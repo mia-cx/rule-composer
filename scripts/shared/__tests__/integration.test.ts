@@ -35,11 +35,10 @@ describe("decompose integration", () => {
 		await rm(tmpDir, { recursive: true, force: true });
 	});
 
-	it("splits the sample AGENTS.md into the expected sections", async () => {
+	it("splits the sample AGENTS.md into expected sections and each split contains its heading", async () => {
 		const input = await getInput();
 		const splits = splitByHeadings(input);
 
-		// 4 H2 sections + 1 preamble = 5
 		expect(splits).toHaveLength(5);
 		expect(splits.map((s) => s.name)).toEqual([
 			"preamble",
@@ -48,12 +47,6 @@ describe("decompose integration", () => {
 			"technology-preferences",
 			"communication",
 		]);
-	});
-
-	it("each split contains its own heading", async () => {
-		const input = await getInput();
-		const splits = splitByHeadings(input);
-
 		expect(splits[1]!.content).toContain("## Approach");
 		expect(splits[2]!.content).toContain("## Coding Conventions");
 		expect(splits[3]!.content).toContain("## Technology Preferences");
@@ -139,31 +132,24 @@ describe("compose integration", () => {
 		}
 	});
 
-	it("compose for cursor matches golden output", async () => {
-		const result = await compose(rules, "cursor");
-		const expected = await readGolden(COMPOSE_EXPECTED, "AGENTS.md");
-		expect(result.content).toBe(expected);
+	it("compose matches golden output for cursor and claude", async () => {
+		const cursorResult = await compose(rules, "cursor");
+		expect(cursorResult.content).toBe(await readGolden(COMPOSE_EXPECTED, "AGENTS.md"));
+		const claudeResult = await compose(rules, "claude");
+		expect(claudeResult.content).toBe(await readGolden(COMPOSE_EXPECTED, "claude.md"));
 	});
 
-	it("compose for claude matches golden output", async () => {
-		const result = await compose(rules, "claude");
-		const expected = await readGolden(COMPOSE_EXPECTED, "claude.md");
-		expect(result.content).toBe(expected);
-	});
+	it("tool-specific compose output: cursor strips frontmatter and resolves placeholders; claude removes empty-value lines", async () => {
+		const cursorResult = await compose(rules, "cursor");
+		expect(cursorResult.content.startsWith("---")).toBe(false);
+		expect(cursorResult.content).toContain(".cursor/rules/");
+		expect(cursorResult.content).not.toContain("{{RULES_DIR}}");
 
-	it("cursor output strips frontmatter and resolves placeholders", async () => {
-		const result = await compose(rules, "cursor");
-		expect(result.content.startsWith("---")).toBe(false);
-		expect(result.content).toContain(".cursor/rules/");
-		expect(result.content).not.toContain("{{RULES_DIR}}");
-	});
-
-	it("claude output resolves placeholders and removes empty-value lines", async () => {
-		const result = await compose(rules, "claude");
-		expect(result.content).toContain("Claude Code");
-		expect(result.content).not.toContain("{{TOOL_NAME}}");
-		expect(result.content).not.toContain("{{SKILLS_DIR}}");
-		expect(result.content).not.toContain("reusable workflows");
+		const claudeResult = await compose(rules, "claude");
+		expect(claudeResult.content).toContain("Claude Code");
+		expect(claudeResult.content).not.toContain("{{TOOL_NAME}}");
+		expect(claudeResult.content).not.toContain("{{SKILLS_DIR}}");
+		expect(claudeResult.content).not.toContain("reusable workflows");
 	});
 
 	it("reports placeholder count and reasonable token estimate", async () => {

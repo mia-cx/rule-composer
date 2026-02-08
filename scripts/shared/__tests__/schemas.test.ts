@@ -7,54 +7,34 @@ import {
 } from "../schemas.js";
 
 describe("openRouterResponseSchema", () => {
-	it("accepts a valid response", () => {
-		const valid = {
-			id: "gen-123",
-			choices: [
-				{
-					message: { content: "Hello world" },
-					finish_reason: "stop",
-				},
-			],
-			usage: {
-				prompt_tokens: 10,
-				completion_tokens: 5,
-				total_tokens: 15,
-			},
-		};
-		const result = openRouterResponseSchema.safeParse(valid);
-		expect(result.success).toBe(true);
+	it("accepts valid response (with or without usage)", () => {
+		expect(
+			openRouterResponseSchema.safeParse({
+				id: "gen-123",
+				choices: [{ message: { content: "Hello world" }, finish_reason: "stop" }],
+				usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+			}).success,
+		).toBe(true);
+		expect(
+			openRouterResponseSchema.safeParse({
+				id: "gen-123",
+				choices: [{ message: { content: "Hello" }, finish_reason: null }],
+			}).success,
+		).toBe(true);
 	});
 
-	it("accepts response without usage", () => {
-		const valid = {
-			id: "gen-123",
-			choices: [
-				{
-					message: { content: "Hello" },
-					finish_reason: null,
-				},
-			],
-		};
-		const result = openRouterResponseSchema.safeParse(valid);
-		expect(result.success).toBe(true);
-	});
-
-	it("rejects response missing id", () => {
-		const invalid = {
-			choices: [{ message: { content: "Hello" }, finish_reason: "stop" }],
-		};
-		const result = openRouterResponseSchema.safeParse(invalid);
-		expect(result.success).toBe(false);
-	});
-
-	it("rejects response with missing message content", () => {
-		const invalid = {
-			id: "gen-123",
-			choices: [{ message: {}, finish_reason: "stop" }],
-		};
-		const result = openRouterResponseSchema.safeParse(invalid);
-		expect(result.success).toBe(false);
+	it("rejects invalid response (missing id or message content)", () => {
+		expect(
+			openRouterResponseSchema.safeParse({
+				choices: [{ message: { content: "Hello" }, finish_reason: "stop" }],
+			}).success,
+		).toBe(false);
+		expect(
+			openRouterResponseSchema.safeParse({
+				id: "gen-123",
+				choices: [{ message: {}, finish_reason: "stop" }],
+			}).success,
+		).toBe(false);
 	});
 });
 
@@ -62,59 +42,35 @@ describe("optimizedOutputSchema", () => {
 	it("accepts valid markdown with headings", () => {
 		const valid =
 			"# My Rules\n\n## Approach\n\nPlan first. This is long enough to pass the minimum length requirement.";
-		const result = optimizedOutputSchema.safeParse(valid);
-		expect(result.success).toBe(true);
+		expect(optimizedOutputSchema.safeParse(valid).success).toBe(true);
 	});
 
-	it("rejects output shorter than 50 chars", () => {
-		const result = optimizedOutputSchema.safeParse("# Short");
-		expect(result.success).toBe(false);
-	});
-
-	it("rejects output without headings", () => {
-		const noHeadings = "This is a long enough string but it has no markdown headings at all in the entire content.";
-		const result = optimizedOutputSchema.safeParse(noHeadings);
-		expect(result.success).toBe(false);
-	});
-
-	it("rejects output that looks like JSON", () => {
-		const jsonLike = '# Rules\n\n```json\n{"key": "value"}\n```\nThis is long enough to pass.';
-		const result = optimizedOutputSchema.safeParse(jsonLike);
-		expect(result.success).toBe(false);
+	it("rejects invalid output (too short, no headings, JSON-like)", () => {
+		expect(optimizedOutputSchema.safeParse("# Short").success).toBe(false);
+		expect(
+			optimizedOutputSchema.safeParse(
+				"This is a long enough string but it has no markdown headings at all in the entire content.",
+			).success,
+		).toBe(false);
+		expect(
+			optimizedOutputSchema.safeParse('# Rules\n\n```json\n{"key": "value"}\n```\nThis is long enough to pass.')
+				.success,
+		).toBe(false);
 	});
 });
 
 describe("ruleFrontmatterSchema", () => {
-	it("accepts valid frontmatter", () => {
-		const valid = {
-			description: "My rule",
-			alwaysApply: true,
-		};
-		const result = ruleFrontmatterSchema.safeParse(valid);
-		expect(result.success).toBe(true);
+	it("accepts valid frontmatter and empty object", () => {
+		expect(ruleFrontmatterSchema.safeParse({ description: "My rule", alwaysApply: true }).success).toBe(true);
+		expect(ruleFrontmatterSchema.safeParse({}).success).toBe(true);
 	});
 
-	it("accepts frontmatter with globs as string", () => {
-		const valid = {
-			description: "File pattern",
-			globs: "**/*.ts",
-		};
-		const result = ruleFrontmatterSchema.safeParse(valid);
-		expect(result.success).toBe(true);
-	});
-
-	it("accepts frontmatter with globs as array", () => {
-		const valid = {
-			description: "Multiple patterns",
-			globs: ["**/*.ts", "**/*.tsx"],
-		};
-		const result = ruleFrontmatterSchema.safeParse(valid);
-		expect(result.success).toBe(true);
-	});
-
-	it("accepts empty object", () => {
-		const result = ruleFrontmatterSchema.safeParse({});
-		expect(result.success).toBe(true);
+	it("accepts frontmatter with globs as string or array", () => {
+		expect(ruleFrontmatterSchema.safeParse({ description: "File pattern", globs: "**/*.ts" }).success).toBe(true);
+		expect(
+			ruleFrontmatterSchema.safeParse({ description: "Multiple patterns", globs: ["**/*.ts", "**/*.tsx"] })
+				.success,
+		).toBe(true);
 	});
 
 	it("rejects alwaysApply as string", () => {
@@ -212,43 +168,28 @@ describe("decomposeResponseSchema", () => {
 		expect(result.success).toBe(true);
 	});
 
-	it("accepts valid directory field", () => {
-		const valid = [
-			{
-				name: "unit-tests",
-				description: "Unit testing conventions",
-				headings: ["Unit Tests"],
-				directory: "testing",
-			},
-		];
-		const result = decomposeResponseSchema.safeParse(valid);
-		expect(result.success).toBe(true);
-	});
+	it("accepts directory field (flat, nested) and omits it (defaults undefined)", () => {
+		const withDir = decomposeResponseSchema.safeParse([
+			{ name: "unit-tests", description: "Unit testing conventions", headings: ["Unit Tests"], directory: "testing" },
+		]);
+		expect(withDir.success).toBe(true);
 
-	it("accepts nested directory path", () => {
-		const valid = [
+		const nested = decomposeResponseSchema.safeParse([
 			{
 				name: "cloudflare",
 				description: "Cloudflare deployment rules",
 				headings: ["Cloudflare"],
 				directory: "infrastructure/deploy",
 			},
-		];
-		const result = decomposeResponseSchema.safeParse(valid);
-		expect(result.success).toBe(true);
-	});
-
-	it("directory field is optional and defaults to undefined", () => {
-		const result = decomposeResponseSchema.safeParse([
-			{
-				name: "approach",
-				description: "General approach rules",
-				headings: ["Approach"],
-			},
 		]);
-		expect(result.success).toBe(true);
-		if (result.success) {
-			expect(result.data[0]!.directory).toBeUndefined();
+		expect(nested.success).toBe(true);
+
+		const noDir = decomposeResponseSchema.safeParse([
+			{ name: "approach", description: "General approach rules", headings: ["Approach"] },
+		]);
+		expect(noDir.success).toBe(true);
+		if (noDir.success) {
+			expect(noDir.data[0]!.directory).toBeUndefined();
 		}
 	});
 

@@ -81,7 +81,7 @@ describe("reconstructFromHeadings", () => {
 			},
 		];
 
-		const { splits, warnings } = reconstructFromHeadings(SAMPLE_DOC, rules);
+		const { splits } = reconstructFromHeadings(SAMPLE_DOC, rules);
 
 		expect(splits).toHaveLength(1);
 		expect(splits[0]!.name).toBe("approach");
