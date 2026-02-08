@@ -95,35 +95,19 @@ describe("compose", () => {
 		expect(content).toBe("Rule A\n\nRule B\n");
 	});
 
-	it("adds numbered prefixes when numbered option is true", async () => {
-		const rules = [
-			makeRule({
-				body: "# Approach\n\nPlan first.",
-				rawContent: "# Approach\n\nPlan first.",
-			}),
-			makeRule({
-				body: "# Coding\n\nUse returns.",
-				rawContent: "# Coding\n\nUse returns.",
-			}),
+	it("adds numbered prefixes when numbered option is true, omits when false", async () => {
+		const twoRules = [
+			makeRule({ body: "# Approach\n\nPlan first.", rawContent: "# Approach\n\nPlan first." }),
+			makeRule({ body: "# Coding\n\nUse returns.", rawContent: "# Coding\n\nUse returns." }),
 		];
+		const { content: numbered } = await compose(twoRules, "cursor", { numbered: true });
+		expect(numbered).toContain("## 1. Approach");
+		expect(numbered).toContain("## 2. Coding");
 
-		// H1 → H2 (via increment) → numbered
-		const { content } = await compose(rules, "cursor", { numbered: true });
-		expect(content).toContain("## 1. Approach");
-		expect(content).toContain("## 2. Coding");
-	});
-
-	it("does not add numbers when numbered option is false", async () => {
-		const rules = [
-			makeRule({
-				body: "# Approach\n\nPlan first.",
-				rawContent: "# Approach\n\nPlan first.",
-			}),
-		];
-
-		const { content } = await compose(rules, "cursor", { numbered: false });
-		expect(content).toContain("## Approach");
-		expect(content).not.toContain("## 1.");
+		const oneRule = [makeRule({ body: "# Approach\n\nPlan first.", rawContent: "# Approach\n\nPlan first." })];
+		const { content: unnumbered } = await compose(oneRule, "cursor", { numbered: false });
+		expect(unnumbered).toContain("## Approach");
+		expect(unnumbered).not.toContain("## 1.");
 	});
 
 	it("skips heading increment when incrementHeadings is false", async () => {
@@ -150,47 +134,49 @@ describe("addSectionNumbers", () => {
 		expect(result).toContain("## 2. Coding");
 	});
 
-	it("skips already-numbered headings", () => {
-		const input = "## 1. Approach\n\nContent.\n\n## Testing\n\nMore.";
-		const result = addSectionNumbers(input);
-		expect(result).toContain("## 1. Approach");
-		expect(result).toContain("## 1. Testing");
+	it("normalizes all H2s to sequential numbers by position (strips existing N.), does not touch H3+, leaves content with no headings unchanged", () => {
+		const withNumberedAndH3 = "## 1. Approach\n\nContent.\n\n## Testing\n\n### Details\n\nContent.";
+		const r1 = addSectionNumbers(withNumberedAndH3);
+		expect(r1).toContain("## 1. Approach");
+		expect(r1).toContain("## 2. Testing");
+		expect(r1).toContain("### Details");
+		expect(r1).not.toContain("### 1. Details");
+
+		const noHeadings = "Just plain text.\n\nMore text.";
+		expect(addSectionNumbers(noHeadings)).toBe(noHeadings);
 	});
 
-	it("does not touch H3+ headings", () => {
-		const input = "## Approach\n\n### Details\n\nContent.";
+	it("renders 99. Rule Name as 5. Rule Name when it is the 5th H2", () => {
+		const input = [
+			"## One",
+			"",
+			"## Two",
+			"",
+			"## Three",
+			"",
+			"## Four",
+			"",
+			"## 99. Rule Name",
+		].join("\n");
 		const result = addSectionNumbers(input);
-		expect(result).toContain("## 1. Approach");
-		expect(result).toContain("### Details");
-		expect(result).not.toContain("### 1. Details");
-	});
-
-	it("handles content with no headings", () => {
-		const input = "Just plain text.\n\nMore text.";
-		expect(addSectionNumbers(input)).toBe(input);
+		expect(result).toContain("## 5. Rule Name");
+		expect(result).not.toContain("## 99.");
 	});
 });
 
 describe("incrementHeadings", () => {
-	it("increments all heading levels by one", () => {
-		const input = "# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5";
-		const result = incrementHeadings(input);
-		expect(result).toBe("## H1\n\n### H2\n\n#### H3\n\n##### H4\n\n###### H5");
+	it("increments H1–H5 by one and leaves H6 unchanged", () => {
+		expect(incrementHeadings("# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5")).toBe(
+			"## H1\n\n### H2\n\n#### H3\n\n##### H4\n\n###### H5",
+		);
+		expect(incrementHeadings("###### H6\n\nSome text.")).toBe("###### H6\n\nSome text.");
 	});
 
-	it("leaves H6 headings unchanged (cannot exceed H6)", () => {
-		const input = "###### H6\n\nSome text.";
-		expect(incrementHeadings(input)).toBe(input);
-	});
-
-	it("does not affect non-heading lines or inline hashes", () => {
-		const input = "Just text.\n\n#not-a-heading\n\nMore text.";
-		expect(incrementHeadings(input)).toBe(input);
-	});
-
-	it("handles content with no headings", () => {
-		const input = "Plain text.\n\nMore text.";
-		expect(incrementHeadings(input)).toBe(input);
+	it("does not affect non-heading lines, inline hashes, or content with no headings", () => {
+		expect(incrementHeadings("Just text.\n\n#not-a-heading\n\nMore text.")).toBe(
+			"Just text.\n\n#not-a-heading\n\nMore text.",
+		);
+		expect(incrementHeadings("Plain text.\n\nMore text.")).toBe("Plain text.\n\nMore text.");
 	});
 });
 
@@ -207,14 +193,11 @@ describe("injectGlobAnnotation", () => {
 		expect(result).toBe("## Scoped\n\n> [!globs]\n\nContent.");
 	});
 
-	it("returns body unchanged when alwaysApply is true", () => {
-		const body = "## Global\n\nContent.";
-		expect(injectGlobAnnotation(body, "*.ts", true)).toBe(body);
-	});
-
-	it("returns body unchanged when alwaysApply is undefined", () => {
-		const body = "## Rule\n\nContent.";
-		expect(injectGlobAnnotation(body, undefined, undefined)).toBe(body);
+	it("leaves body unchanged when not scoped (alwaysApply true or undefined)", () => {
+		const body1 = "## Global\n\nContent.";
+		expect(injectGlobAnnotation(body1, "*.ts", true)).toBe(body1);
+		const body2 = "## Rule\n\nContent.";
+		expect(injectGlobAnnotation(body2, undefined, undefined)).toBe(body2);
 	});
 
 	it("prepends callout when no heading is found", () => {
@@ -271,15 +254,11 @@ describe("compose glob embedding", () => {
 
 describe("estimateTokens", () => {
 	it("returns OpenAI-style token count via gpt-tokenizer", () => {
-		const text = "hello world";
-		expect(estimateTokens(text)).toBe(countTokens(text));
+		expect(estimateTokens("hello world")).toBe(countTokens("hello world"));
 	});
 
-	it("handles empty string", () => {
+	it("returns 0 for empty string and positive count for non-empty text", () => {
 		expect(estimateTokens("")).toBe(0);
-	});
-
-	it("returns positive count for non-empty text", () => {
 		expect(estimateTokens("line one\nline two\nline three")).toBeGreaterThan(0);
 		expect(estimateTokens("  hello   world  ")).toBeGreaterThan(0);
 	});

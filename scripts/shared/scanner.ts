@@ -1,4 +1,4 @@
-import { readdir, stat, access } from "node:fs/promises";
+import { readdir, access } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOOL_REGISTRY } from "./formats.js";
@@ -8,6 +8,17 @@ import { TOOL_IDS } from "./types.js";
 
 const RULE_EXTENSIONS = new Set([".mdc", ".md"]);
 const SKILL_FILENAME = "SKILL.md";
+
+/** Extract leading numeric prefix from rule name (e.g. "01-approach" → 1, "99-foo" → 99). No prefix → 0. */
+const numericPrefix = (name: string): number => {
+	const m = /^(\d+)-/.exec(name);
+	return m ? parseInt(m[1]!, 10) : 0;
+};
+
+/** Sort rules by filename prefix (01-, 02-, …, 99-) so order is stable and 99-rule-name appears last. */
+export const sortRulesByFilenamePrefix = (rules: RuleFile[]): RuleFile[] => {
+	return [...rules].sort((a, b) => numericPrefix(a.name) - numericPrefix(b.name));
+};
 
 /** Check if a path exists */
 const exists = async (path: string): Promise<boolean> => {
@@ -61,7 +72,7 @@ export const walkDir = async (
 		}
 	}
 
-	return rules;
+	return sortRulesByFilenamePrefix(rules);
 };
 
 /** Scan a directory for rule files and return as a DiscoveredSource */

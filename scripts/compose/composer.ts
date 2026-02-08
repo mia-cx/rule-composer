@@ -36,12 +36,15 @@ export const injectGlobAnnotation = (body: string, globs?: string, alwaysApply?:
 	return `${annotation}\n\n${body}`;
 };
 
-/** Add numbered prefixes to H2 headings that aren't already numbered */
+/** Strip optional leading "N. " from heading text (e.g. "99. Rule Name" → "Rule Name"). */
+const stripHeadingNumber = (heading: string): string => heading.replace(/^\d+\.\s+/, "");
+
+/** Add sequential numbered prefixes (1., 2., 3., …) to all H2 headings by position; strips any existing N. prefix. */
 export const addSectionNumbers = (content: string): string => {
 	let counter = 0;
-	return content.replace(/^## (?!\d+\.\s)(.+)$/gm, (_match, heading) => {
+	return content.replace(/^## (.+)$/gm, (_match, heading) => {
 		counter++;
-		return `## ${counter}. ${heading}`;
+		return `## ${counter}. ${stripHeadingNumber(heading)}`;
 	});
 };
 

@@ -2,7 +2,22 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { detectTools, resolveAgentsRepo } from "../scanner.js";
+import { detectTools, resolveAgentsRepo, scanDirectory, sortRulesByFilenamePrefix } from "../scanner.js";
+
+describe("sortRulesByFilenamePrefix", () => {
+	it("orders rules by numeric prefix (01, 02, …, 99) so 99-rule-name appears last", async () => {
+		const dir = join(tmpdir(), "arc-test-sort-rules");
+		await rm(dir, { recursive: true, force: true });
+		await mkdir(dir, { recursive: true });
+		await writeFile(join(dir, "99-a.mdc"), "---\ndescription: A\n---\n\n# A", "utf-8");
+		await writeFile(join(dir, "01-b.mdc"), "---\ndescription: B\n---\n\n# B", "utf-8");
+		await writeFile(join(dir, "02-c.mdc"), "---\ndescription: C\n---\n\n# C", "utf-8");
+
+		const source = await scanDirectory(dir);
+		expect(source.rules.map((r) => r.name)).toEqual(["01-b", "02-c", "99-a"]);
+		await rm(dir, { recursive: true, force: true });
+	});
+});
 
 describe("detectTools", () => {
 	const tmpDir = join(tmpdir(), "arc-test-detect");
