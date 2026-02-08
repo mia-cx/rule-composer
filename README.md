@@ -90,18 +90,18 @@ pnpm sync diff
 
 ## Scripts
 
-| Script                   | Description                                   |
-| ------------------------ | --------------------------------------------- |
-| `pnpm dev`               | Run interactively (pick compose or decompose) |
-| `pnpm compose [path]`    | Compose rules for a target tool               |
-| `pnpm decompose [path]`  | Decompose a monolithic rules file             |
-| `pnpm sync` (push, pull, diff) | Sync rules/skills with global config    |
-| `pnpm build`             | Build for distribution (tsup)                 |
-| `pnpm build-variants`    | Regenerate `coding-tools/` directories        |
-| `pnpm test`              | Run all 191 tests                             |
-| `pnpm test:watch`        | Run tests in watch mode                       |
-| `pnpm format`            | Format codebase with Prettier                 |
-| `pnpm generate-fixtures` | Regenerate golden test fixtures               |
+| Script                         | Description                                   |
+| ------------------------------ | --------------------------------------------- |
+| `pnpm dev`                     | Run interactively (pick compose or decompose) |
+| `pnpm compose [path]`          | Compose rules for a target tool               |
+| `pnpm decompose [path]`        | Decompose a monolithic rules file             |
+| `pnpm sync` (push, pull, diff) | Sync rules/skills with global config          |
+| `pnpm build`                   | Build for distribution (tsup)                 |
+| `pnpm build-variants`          | Regenerate `coding-tools/` directories        |
+| `pnpm test`                    | Run all 191 tests                             |
+| `pnpm test:watch`              | Run tests in watch mode                       |
+| `pnpm format`                  | Format codebase with Prettier                 |
+| `pnpm generate-fixtures`       | Regenerate golden test fixtures               |
 
 ## Environment Variables
 
@@ -110,6 +110,8 @@ pnpm sync diff
 | `OPENROUTER_API_KEY` | For LLM features only | API key for [OpenRouter](https://openrouter.ai) — used for rule optimization and AI-assisted decomposition |
 
 The tool works fully without an API key. LLM features are always optional.
+
+> [!TODO] I have NOT tested the openrouter implementation (yet).
 
 ## Documentation
 
@@ -153,6 +155,7 @@ apps/
 
 ### CLI Enhancements
 
+- [ ] Test Openrouter implementation
 - [ ] `--version`, `--help` flags
 - [ ] `--non-interactive` mode with `--rules`, `--tool`, `--output` flags for CI/scripting
 - [x] `[path]` positional argument for both compose and decompose
