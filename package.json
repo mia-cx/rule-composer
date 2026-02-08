@@ -1,0 +1,44 @@
+{
+  "name": "rule-composer",
+  "version": "0.1.0",
+  "description": "Cross-tool CLI for composing, converting, and optimizing AI coding agent rules",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "agent-rule-composer": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "rules",
+    "skills",
+    "coding-tools",
+    "scripts/compose/prompt.md",
+    "scripts/decompose/prompt.md"
+  ],
+  "scripts": {
+    "dev": "tsx scripts/index.ts",
+    "compose": "tsx scripts/index.ts compose",
+    "decompose": "tsx scripts/index.ts decompose",
+    "build": "tsup",
+    "prepack": "pnpm build && pnpm build-variants",
+    "build-variants": "tsx scripts/compose/variants.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "@clack/core": "^0.4.0",
+    "@clack/prompts": "^0.9.0",
+    "gray-matter": "^4.0.3",
+    "picocolors": "^1.1.0",
+    "zod": "^3.24.0"
+  }
+}
