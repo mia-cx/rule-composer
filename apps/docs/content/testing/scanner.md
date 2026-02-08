@@ -15,12 +15,12 @@ Tests filesystem-based tool detection and the three-tier agents repo resolution 
 
 Scans a directory for all 10 supported tools' rule files and directories.
 
-| Test | Setup | Expected |
-|------|-------|----------|
-| detects cursor rules directory | `.cursor/rules/test.mdc` created | Source with `id: 'cursor'`, 1 rule named `"test"`, label matches `"Cursor (N file(s))"` |
-| detects claude single file | `CLAUDE.md` created | Source with `id: 'claude'` |
-| returns empty for no tool files | Empty directory | `[]` — no sources detected |
-| skips _prefixed directories | `_drafts/draft.mdc` + `real.mdc` | Only `real.mdc` found; `_drafts/` ignored |
+| Test                            | Setup                            | Expected                                                                                |
+| ------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------- |
+| detects cursor rules directory  | `.cursor/rules/test.mdc` created | Source with `id: 'cursor'`, 1 rule named `"test"`, label matches `"Cursor (N file(s))"` |
+| detects claude single file      | `CLAUDE.md` created              | Source with `id: 'claude'`                                                              |
+| returns empty for no tool files | Empty directory                  | `[]` — no sources detected                                                              |
+| skips \_prefixed directories    | `_drafts/draft.mdc` + `real.mdc` | Only `real.mdc` found; `_drafts/` ignored                                               |
 
 ### Underscore prefix convention
 
@@ -34,8 +34,8 @@ The three-tier resolution strategy for finding the agents repo's bundled rules:
 2. **Tier 2: GitHub** — (not yet implemented in MVP)
 3. **Tier 3: Bundled** — Relative to `import.meta.url` (package root)
 
-| Test | Setup | Expected |
-|------|-------|----------|
-| finds local rules/ directory | `rules/approach.mdc` in temp dir | Source with `id: 'agents-repo'`, label contains `"local"` |
-| finds local skills/ directory | `skills/my-skill/SKILL.md` in temp dir | Source includes a rule with `type: 'skill'` |
-| falls back to bundled rules | Empty directory (no `rules/` or `skills/`) | Either bundled source or `null` |
+| Test                          | Setup                                      | Expected                                                  |
+| ----------------------------- | ------------------------------------------ | --------------------------------------------------------- |
+| finds local rules/ directory  | `rules/approach.mdc` in temp dir           | Source with `id: 'agents-repo'`, label contains `"local"` |
+| finds local skills/ directory | `skills/my-skill/SKILL.md` in temp dir     | Source includes a rule with `type: 'skill'`               |
+| falls back to bundled rules   | Empty directory (no `rules/` or `skills/`) | Either bundled source or `null`                           |

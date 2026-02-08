@@ -41,34 +41,34 @@ The generator script (`generate-fixtures.ts`) runs the real `splitByHeadings`, `
 
 Runs the decompose pipeline against the sample AGENTS.md and verifies output.
 
-| Test | What it checks |
-|------|---------------|
-| splits into expected sections | 5 sections: preamble, approach, coding-conventions, technology-preferences, communication |
-| each split contains its heading | `## Approach` in approach split, etc. |
-| extracts correct descriptions | Prose sections get descriptions, table sections (technology-preferences) get empty |
-| buildRawContent generates correct frontmatter | Prose → `alwaysApply` + `description`; table → `alwaysApply` only |
-| writeAsDirectory matches golden fixtures | Every `.mdc` file compared byte-for-byte against `decompose-expected/` |
+| Test                                          | What it checks                                                                            |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| splits into expected sections                 | 5 sections: preamble, approach, coding-conventions, technology-preferences, communication |
+| each split contains its heading               | `## Approach` in approach split, etc.                                                     |
+| extracts correct descriptions                 | Prose sections get descriptions, table sections (technology-preferences) get empty        |
+| buildRawContent generates correct frontmatter | Prose → `alwaysApply` + `description`; table → `alwaysApply` only                         |
+| writeAsDirectory matches golden fixtures      | Every `.mdc` file compared byte-for-byte against `decompose-expected/`                    |
 
 ## `compose integration` — 5 tests
 
 Reads the decomposed golden files, composes for Cursor and Claude, and compares against expected output.
 
-| Test | What it checks |
-|------|---------------|
-| cursor matches golden output | Full content comparison against `compose-expected/AGENTS.md` |
-| claude matches golden output | Full content comparison against `compose-expected/claude.md` |
-| cursor strips frontmatter and resolves placeholders | No `---` delimiters, `{{RULES_DIR}}` → `.cursor/rules/` |
-| claude resolves and removes empty-value lines | `{{TOOL_NAME}}` → `Claude Code`, `{{SKILLS_DIR}}` lines removed |
-| reports placeholder count and token estimate | `placeholderCount > 0`, tokens between 0 and content length |
+| Test                                                | What it checks                                                  |
+| --------------------------------------------------- | --------------------------------------------------------------- |
+| cursor matches golden output                        | Full content comparison against `compose-expected/AGENTS.md`    |
+| claude matches golden output                        | Full content comparison against `compose-expected/claude.md`    |
+| cursor strips frontmatter and resolves placeholders | No `---` delimiters, `{{RULES_DIR}}` → `.cursor/rules/`         |
+| claude resolves and removes empty-value lines       | `{{TOOL_NAME}}` → `Claude Code`, `{{SKILLS_DIR}}` lines removed |
+| reports placeholder count and token estimate        | `placeholderCount > 0`, tokens between 0 and content length     |
 
 ## `reconstruct integration` — 5 tests
 
 Tests `reconstructFromHeadings` against the sample AGENTS.md with simulated AI metadata.
 
-| Test | What it checks |
-|------|---------------|
-| reconstructs all sections | 4 rules claiming all 4 headings → 4 splits, no unmatched warnings |
-| cross-heading grouping | One rule claiming "Coding Conventions" + "Communication" → merged content |
-| includes preamble | `__preamble__` → split with "Sample Project Rules" content |
-| warns about unclaimed sections | Only "Approach" claimed → 3+ unclaimed warnings |
-| directory passthrough | `directory: "core"` → preserved in split result |
+| Test                           | What it checks                                                            |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| reconstructs all sections      | 4 rules claiming all 4 headings → 4 splits, no unmatched warnings         |
+| cross-heading grouping         | One rule claiming "Coding Conventions" + "Communication" → merged content |
+| includes preamble              | `__preamble__` → split with "Sample Project Rules" content                |
+| warns about unclaimed sections | Only "Approach" claimed → 3+ unclaimed warnings                           |
+| directory passthrough          | `directory: "core"` → preserved in split result                           |
