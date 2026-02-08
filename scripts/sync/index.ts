@@ -209,7 +209,7 @@ export const runSync = async (direction: SyncDirection | undefined, options: Syn
 			let content: string;
 			try {
 				content = await composeRepoRules(repoRules);
-			} catch (err) {
+			} catch (_err) {
 				p.log.error(
 					`Could not read repo rules from ${repoRules}. Ensure the directory exists and is readable.`,
 				);

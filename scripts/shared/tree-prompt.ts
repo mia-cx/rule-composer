@@ -1,4 +1,4 @@
-import { Prompt, isCancel } from "@clack/core";
+import { Prompt } from "@clack/core";
 import color from "picocolors";
 import type { TreeNode, RuleFile, DiscoveredSource } from "./types.js";
 
@@ -248,7 +248,7 @@ export const treeMultiSelect = async (opts: TreeMultiSelectOptions): Promise<Rul
 	let cursorIndex = 0;
 
 	return new Promise<RuleFile[] | symbol>((resolve) => {
-		const prompt = new Prompt({
+		const _prompt = new Prompt({
 			input: process.stdin,
 			output: process.stdout,
 			render() {

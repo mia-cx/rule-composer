@@ -3,7 +3,7 @@ import { join, resolve, dirname, extname, basename, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import { TOOL_IDS, type ToolId } from "../shared/types.js";
-import { TOOL_REGISTRY, TOOL_VARIABLES, resolvePlaceholders, formatMarkdown, quoteGlobs } from "../shared/formats.js";
+import { TOOL_REGISTRY, resolvePlaceholders, formatMarkdown, quoteGlobs } from "../shared/formats.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(__dirname, "../..");

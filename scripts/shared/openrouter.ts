@@ -26,7 +26,7 @@ export const resolvePromptPath = (relPath: string): string => {
 	// Try dev path first: scripts/shared/ -> scripts/<relPath>
 	const devPath = resolve(__dirname, "..", relPath);
 	// Published path: dist/ -> scripts/<relPath>
-	const publishedPath = resolve(__dirname, "..", "scripts", relPath);
+	const _publishedPath = resolve(__dirname, "..", "scripts", relPath);
 
 	// Return dev path by default (more common during development)
 	return devPath;

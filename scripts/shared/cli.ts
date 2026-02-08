@@ -1,9 +1,8 @@
 import * as p from "@clack/prompts";
-import color from "picocolors";
 import type { ToolId, DiscoveredSource, RuleFile, OutputTarget } from "./types.js";
 import { TOOL_IDS } from "./types.js";
-import { TOOL_REGISTRY, TOOL_VARIABLES } from "./formats.js";
-import { buildTree, treeMultiSelect, getSelectedRules } from "./tree-prompt.js";
+import { TOOL_REGISTRY } from "./formats.js";
+import { buildTree, treeMultiSelect } from "./tree-prompt.js";
 
 /** Let user pick which detected sources to read from */
 export const pickSources = async (
