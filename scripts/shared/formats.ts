@@ -22,6 +22,13 @@ export const unquoteGlobs = (raw: string): string =>
 		(_, prefix: string, _quote: string, value: string) => `${prefix}${value}`,
 	);
 
+/**
+ * Ensure exactly one blank line between YAML frontmatter (closing ---) and body.
+ * gray-matter stringify does not add this; markdown convention and @eslint/markdown expect it.
+ */
+export const ensureBlankLineAfterFrontmatter = (raw: string): string =>
+	raw.replace(/(---\r?\n(?:.*\r?\n)*?---\r?\n)([^\r\n])/m, "$1\n$2");
+
 /** Tool registry — config for all supported tools */
 export const TOOL_REGISTRY: Record<ToolId, ToolConfig> = {
 	cursor: {
@@ -441,7 +448,7 @@ export const writeAsDirectory = async (
 		if (config.hasFrontmatter) {
 			// Reconstruct with frontmatter, then unquote globs for Cursor
 			const parsed = matter(quoteGlobs(rule.rawContent));
-			content = unquoteGlobs(matter.stringify(rule.body, parsed.data));
+			content = ensureBlankLineAfterFrontmatter(unquoteGlobs(matter.stringify(rule.body, parsed.data)));
 		} else {
 			content = rule.body;
 		}

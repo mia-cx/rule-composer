@@ -14,6 +14,7 @@ import {
 	TOOL_REGISTRY,
 	writeAsDirectory,
 	formatMarkdown,
+	ensureBlankLineAfterFrontmatter,
 	detectSourceTool,
 	replaceWithPlaceholders,
 	extractGlobAnnotation,
@@ -97,7 +98,7 @@ export const buildRawContent = (
 		frontmatterData["globs"] = options.globs;
 	}
 
-	return matter.stringify(body, frontmatterData);
+	return ensureBlankLineAfterFrontmatter(matter.stringify(body, frontmatterData));
 };
 
 /**

@@ -4,6 +4,7 @@ description: >-
   Use consistent patterns across the codebase. {{TOOL_NAME}} should follow these
   conventions strictly.
 ---
+
 ## Coding Conventions
 
 Use consistent patterns across the codebase. {{TOOL_NAME}} should follow these conventions strictly.
