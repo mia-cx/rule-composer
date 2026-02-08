@@ -1,0 +1,5 @@
+# Approach
+
+Prefer **Plan mode** over Agent mode. Plan first, confirm, then implement. When a task involves multiple steps, architectural decisions, or trade-offs, switch to Plan mode proactively to keep things budget-friendly.
+
+Only move to Agent mode once the plan is agreed upon. For trivial single-file changes, skip the ceremony.

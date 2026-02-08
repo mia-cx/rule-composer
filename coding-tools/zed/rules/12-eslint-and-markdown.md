@@ -1,0 +1,10 @@
+# ESLint and markdown
+
+Linting is done with **ESLint** (flat config in `eslint.config.js`):
+
+- **Markdown** (`.md`, `.mdc`): **@eslint/markdown** with `markdown/recommended`. Use `language: "markdown/commonmark"` so files are parsed as markdown, not JS. Rule `markdown/no-missing-label-refs` is off (callouts and task lists are not link refs).
+- **TypeScript** (`scripts/**/*.ts`): **typescript-eslint** recommended. Unused vars/args prefixed with `_` are ignored (`argsIgnorePattern`, `varsIgnorePattern`, `caughtErrorsIgnorePattern`).
+
+Run `pnpm lint`. Ignores: `node_modules`, `dist`, `apps/docs`, `.cursor`, `**/__tests__/fixtures`, backup dirs, `*.plan.md`.
+
+**Frontmatter and body:** A blank line between YAML frontmatter (closing `---`) and the first line of content is enforced by `ensureBlankLineAfterFrontmatter()` in `buildRawContent` and `writeAsDirectory` (markdown convention).
