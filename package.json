@@ -24,11 +24,15 @@
     "build": "tsup",
     "prepack": "pnpm build && pnpm build-variants",
     "build-variants": "tsx scripts/compose/variants.ts",
+    "format": "prettier --write .",
+    "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate-fixtures": "tsx scripts/shared/__tests__/generate-fixtures.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "eslint": "^10.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0",
@@ -39,6 +43,7 @@
     "@clack/prompts": "^0.9.0",
     "gray-matter": "^4.0.3",
     "picocolors": "^1.1.0",
+    "prettier": "^3.8.1",
     "zod": "^3.24.0"
   }
 }
