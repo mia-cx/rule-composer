@@ -13,7 +13,7 @@ Only move to Agent mode once the plan is agreed upon. For trivial single-file ch
 **For every non-trivial task, create a todo list before starting.** The list MUST include task-specific items AND these four standing items. When working on a plan, include these in the plan's frontmatter. When working as an agent, use available todo tools. Each one MUST appear as an explicit todo — mark it complete with a note, or mark it N/A with a reason. Silently omitting any of them is a failure mode.
 
 1. **Tests** — Write or update tests for the work done. Mark complete only after tests pass.
-2. **Rules & skills** — Capture any new project knowledge as `.cursor/rules/` or `.cursor/skills/`. See [Rules and Skills](#6-rules-and-skills) for triggers.
+2. **Rules & skills** — Capture any new project knowledge as `.cursor/rules/` or `.cursor/skills/`. See [Rules and Skills](./06-rules-and-skills.mdc) for triggers.
 3. **Documentation** — Update relevant documentation if the change affects documented behavior, commands, or architecture.
 4. **Review & close** — Before marking the task complete, review your own work for: gaps in logic or edge cases, potential bugs, performance issues, adherence to conventions (see [Coding Conventions](#9-coding-conventions)), and opportunities to simplify. Then verify: tests pass, app builds, rules/skills captured, docs updated. Ask: "Did I capture new project knowledge as rules or skills?" If no and the task involved non-trivial decisions, go back and create them.
 
@@ -105,13 +105,15 @@ When adding an app or package to an existing monorepo:
 4. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
 5. Fetch the relevant docs first (see [Reference Links](#12-reference-links)).
 
-## 5. Rules and Skills
+## 5. Creating Rules, Skills and Subagents
 
-**CRITICAL — You MUST create rules and skills as you work.** Every conversation that touches architecture, debugging, or implementation MUST leave behind captured knowledge.
+**CRITICAL — You MUST create rules, skills and subagents as you work.** Every conversation that touches architecture, debugging, or implementation MUST leave behind captured knowledge.
 
 **Rules** (`.cursor/rules/*.mdc`) — Project knowledge: architecture decisions, conventions, patterns, gotchas. One concern per file, under 50 lines. Use `alwaysApply: true` for project-wide context, `globs` for file-scoped patterns.
 
 **Skills** (`.cursor/skills/*/SKILL.md`) — Repeatable multi-step workflows. Use `disable-model-invocation: true` for manual-only invocation.
+
+**Subagents** (`.cursor/agents/*.md`) - Specialized AI assistants that run in isolated contexts with custom system prompts.
 
 ### Mandatory triggers
 
@@ -119,15 +121,17 @@ Create a **rule** when you: make an architectural decision, discover a non-obvio
 
 Create a **skill** when you: complete a multi-step workflow the user will repeat, or build a process involving CLI commands or tool sequences.
 
+Create a **subagent** when you: discover a simple task that will be repeated a lot, and could benefit from a specialized system prompt.
+
 **Promote to global when reusable.** If a rule or skill applies across projects, suggest moving it to `~/.cursor/rules/` or `~/.cursor/skills/`.
 
-## 6. Subagents and Skills
+## 6. Using Subagents and Skills
 
 **Subagents** (`.cursor/agents/`) — Specialized agents invoked for specific steps. When a plan or todo names a subagent (e.g. vitest-writer, quartz-docs-author, verifier), invoke that subagent when performing that step. The subagent’s `description` drives when the agent suggests it; use the named subagent rather than doing the step manually when the plan references it.
 
-**Skills** (`.cursor/skills/`) — Repeatable workflows. When implementing a plan, use skills referenced in the plan (e.g. vitest-writer for tests, quartz-docs-author for docs). Create or update a skill when the work produces a new multi-step workflow worth reusing.
+**Skills** (`.cursor/skills/`) — Repeatable workflows. When implementing a plan, use skills referenced in the plan (e.g. optimize-agent-rules for optimizing a prompt, organize-commits for version control with git). Create or update a skill when the work produces a new multi-step workflow worth reusing.
 
-Keep this rule short; see [Rules and Skills](#6-rules-and-skills) for when to create rules vs skills and for global promotion.
+Keep this rule short; see [Rules and Skills](06-rules-and-skills.mdc) for when to create rules vs skills and for global promotion.
 
 ## 7. Technology Preferences
 
