@@ -25,6 +25,8 @@ The optional `-o`/`--output` flag specifies the output directory, skipping the i
 Scans CWD for known single-file rule files:
 `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `CONVENTIONS.md`, `.github/copilot-instructions.md`, `.junie/guidelines.md`
 
+Also looks for the same filenames in the **bundled** package root (the installed rule-composer package). Any found there appear in the pick list as e.g. `Bundled: AGENTS.md`, so you can decompose the package’s own composed file when running with `pnpm dlx` or from a project that has no local rule file.
+
 **Skipped** when a file `[path]` argument is provided. When a directory is given, it scans that directory instead.
 
 ### 2. Pick Input File

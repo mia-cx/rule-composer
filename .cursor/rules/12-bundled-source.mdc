@@ -1,0 +1,16 @@
+---
+description: Bundled package rules as a selectable source for compose and decompose
+alwaysApply: false
+globs: scripts/shared/scanner.ts, scripts/compose/index.ts, scripts/decompose/index.ts
+---
+
+# Bundled source
+
+Compose and decompose include the **bundled** package rules (the installed rule-composer’s own `rules/` and `skills/`) as a selectable source. Useful when running with `pnpm dlx` or in a project with no local rules.
+
+- **Scanner**: `getPackageRoot()` resolves the package root (directory containing `rules/`). `getBundledSource()` returns a `DiscoveredSource` with `id: "bundled"` and rules/skills from that root. `resolveAgentsRepo()` tier-3 fallback returns `getBundledSource()` when no local `rules/` or `skills/` exist in CWD.
+- **Compose**: When no input path is given, `getBundledSource()` is added to the sources list unless `agentsRepo` is already the bundled source (avoids duplicate). So local + bundled can both appear; with `pnpm dlx` and no local rules, only bundled appears.
+- **Decompose**: When no path is given, known single-file rule names are also looked for under the package root; matches appear as e.g. `Bundled: AGENTS.md` in the input file pick list.
+- **Types**: `SourceId` includes `"bundled"`. `pickTargetTool` excludes both `agents-repo` and `bundled` from the detected-tools list.
+
+Package root resolution uses `import.meta.url` in `scanner.ts`: from `dist/shared/` (published) or `scripts/shared/` (dev), parent directories are tried until one contains `rules/`.

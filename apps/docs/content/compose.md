@@ -25,9 +25,12 @@ The optional `-o`/`--output` flag specifies where to write the result, skipping 
 
 ### 1. Detect Sources
 
-Scans the current working directory for rule files from all 10 supported tools. Also resolves the project’s local rules (local `rules/` and `skills/` directories, or bundled fallback).
+Scans the current working directory for rule files from all 10 supported tools. Also resolves the project’s local rules (local `rules/` and `skills/` directories) and the **bundled** package rules (from the installed rule-composer package).
 
-Each discovered source appears with a label like `Cursor (3 files)` or `rule-composer — local (5 files)`. The project name for the local/bundled source is taken from `package.json` `name` (with any scope stripped) or, if absent, the root directory name.
+- **Local** — If CWD has `rules/` or `skills/`, they appear as one source (e.g. `rule-composer — local (5 files)`).
+- **Bundled** — The package’s own `rules/` and `skills/` are always included when available (e.g. `Bundled (rule-composer) — 12 files`). Useful when running with `pnpm dlx rule-composer compose` in a project that has no local rules; you can still compose from the bundled rules. When local rules exist, bundled is listed as a separate source so you can mix or compare.
+
+Each discovered source appears with a label like `Cursor (3 files)` or `rule-composer — local (5 files)`. The project name for local/bundled is taken from `package.json` `name` (with any scope stripped) or, if absent, the root directory name.
 
 **Skipped** when a `[path]` argument is provided.
 
