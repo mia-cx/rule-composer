@@ -10,6 +10,7 @@ import {
 	writeAsDirectory,
 	writeAsSingleFile,
 	extractGlobAnnotation,
+	extractSectionMetadata,
 	unquoteGlobs,
 	ensureBlankLineAfterFrontmatter,
 	TOOL_REGISTRY,
@@ -42,16 +43,27 @@ describe("TOOL_VARIABLES", () => {
 		}
 	});
 
-	it("cursor has all expected keys; claude has empty skills-related vars", () => {
+	it("cursor has all expected keys; claude has empty skills/agents/commands vars", () => {
 		const cursor = TOOL_VARIABLES.cursor;
 		expect(cursor["RULES_DIR"]).toBe(".cursor/rules/");
 		expect(cursor["RULES_EXT"]).toBe(".mdc");
 		expect(cursor["SKILLS_DIR"]).toBe(".cursor/skills/");
+		expect(cursor["AGENTS_DIR"]).toBe(".cursor/agents/");
+		expect(cursor["COMMANDS_DIR"]).toBe(".cursor/commands/");
 		expect(cursor["GLOBAL_RULES"]).toBe("~/.cursor/rules/");
 		expect(cursor["GLOBAL_SKILLS"]).toBe("~/.cursor/skills/");
 		expect(TOOL_VARIABLES.claude["SKILLS_DIR"]).toBe("");
 		expect(TOOL_VARIABLES.claude["SKILLS_EXT"]).toBe("");
 		expect(TOOL_VARIABLES.claude["GLOBAL_SKILLS"]).toBe("");
+		expect(TOOL_VARIABLES.claude["AGENTS_DIR"]).toBe("");
+		expect(TOOL_VARIABLES.claude["COMMANDS_DIR"]).toBe("");
+	});
+
+	it("every tool has same variable keys (exhaustive map)", () => {
+		const keys = Object.keys(TOOL_VARIABLES.cursor).sort();
+		for (const id of TOOL_IDS) {
+			expect(Object.keys(TOOL_VARIABLES[id]!).sort()).toEqual(keys);
+		}
 	});
 });
 
@@ -107,6 +119,14 @@ describe("resolvePlaceholders", () => {
 		);
 	});
 
+	it("resolves AGENTS_DIR and COMMANDS_DIR for Cursor; removes line for tools without them", () => {
+		const line = "Subagents in {{AGENTS_DIR}}, commands in {{COMMANDS_DIR}}.";
+		expect(resolvePlaceholders(line, "cursor")).toBe(
+			"Subagents in .cursor/agents/, commands in .cursor/commands/.",
+		);
+		expect(resolvePlaceholders(line, "claude")).toBe("");
+	});
+
 	it("handles multiple placeholders on the same line", () => {
 		const input = "{{RULES_DIR}}*{{RULES_EXT}}";
 		const result = resolvePlaceholders(input, "cursor");
@@ -134,7 +154,6 @@ describe("resolvePlaceholders", () => {
 		expect(lines[0]).toBe("Static line");
 		expect(lines[1]).toBe("Another static line");
 	});
-
 });
 
 describe("detectSourceTool", () => {
@@ -543,6 +562,61 @@ describe("extractGlobAnnotation", () => {
 	});
 });
 
+describe("extractSectionMetadata", () => {
+	it("extracts blockquote description only when no callouts", () => {
+		const content = "## Approach\n\n> Plan first, confirm, then implement.\n\nOnly move to Agent mode.";
+		const r = extractSectionMetadata(content);
+		expect(r.description).toBe("Plan first, confirm, then implement.");
+		expect(r.globs).toBeUndefined();
+		expect(r.alwaysApply).toBe(true);
+		expect(r.content).toBe("## Approach\n\nOnly move to Agent mode.");
+	});
+
+	it("extracts [!globs] and [!alwaysApply] false with blockquote description", () => {
+		const content =
+			"## Tool Registry\n\n> Conventions for the registry.\n\n> [!globs] scripts/shared/formats.ts\n\n> [!alwaysApply] false\n\nContent.";
+		const r = extractSectionMetadata(content);
+		expect(r.description).toBe("Conventions for the registry.");
+		expect(r.globs).toBe("scripts/shared/formats.ts");
+		expect(r.alwaysApply).toBe(false);
+		expect(r.content).toContain("Content.");
+		expect(r.content).not.toContain("[!globs]");
+	});
+
+	it("extracts [!alwaysApply] true explicitly", () => {
+		const content = "## Global\n\n> [!alwaysApply] true\n\nContent.";
+		const r = extractSectionMetadata(content);
+		expect(r.alwaysApply).toBe(true);
+		expect(r.content).toBe("## Global\n\nContent.");
+	});
+
+	it("returns undefined description and alwaysApply true when no metadata", () => {
+		const content = "## Section\n\nFirst prose line here.\n\nMore body.";
+		const r = extractSectionMetadata(content);
+		expect(r.description).toBeUndefined();
+		expect(r.globs).toBeUndefined();
+		expect(r.alwaysApply).toBe(true);
+		expect(r.content).toBe(content);
+	});
+
+	it("joins multiple blockquote lines for description and caps at 120 chars", () => {
+		const long = "a".repeat(80);
+		const content = `## Section\n\n> ${long}\n\n> Second line.\n\nBody.`;
+		const r = extractSectionMetadata(content);
+		expect(r.description).toBe(`${long} Second line.`.slice(0, 120));
+		expect(r.content).toBe("## Section\n\nBody.");
+	});
+
+	it("allows metadata in different orders (callouts before blockquote)", () => {
+		const content = "## Scoped\n\n> [!globs] *.ts\n\n> [!alwaysApply] false\n\n> One-line summary.\n\nBody.";
+		const r = extractSectionMetadata(content);
+		expect(r.description).toBe("One-line summary.");
+		expect(r.globs).toBe("*.ts");
+		expect(r.alwaysApply).toBe(false);
+		expect(r.content).toBe("## Scoped\n\nBody.");
+	});
+});
+
 describe("unquoteGlobs", () => {
 	it("removes single and double quotes from glob values", () => {
 		expect(unquoteGlobs("---\nglobs: 'scripts/**/*.ts'\n---")).toBe("---\nglobs: scripts/**/*.ts\n---");
@@ -572,7 +646,17 @@ describe("readRule glob extraction", () => {
 		const scopedPath = join(tmpDir, "scoped.mdc");
 		await writeFile(
 			scopedPath,
-			["---", "description: Scoped rule", "alwaysApply: false", "globs: scripts/**/*.ts", "---", "", "## Scoped Rule", "", "Content."].join("\n"),
+			[
+				"---",
+				"description: Scoped rule",
+				"alwaysApply: false",
+				"globs: scripts/**/*.ts",
+				"---",
+				"",
+				"## Scoped Rule",
+				"",
+				"Content.",
+			].join("\n"),
 			"utf-8",
 		);
 		const rule1 = await readRule(scopedPath, "cursor");
@@ -582,7 +666,15 @@ describe("readRule glob extraction", () => {
 		const multiPath = join(tmpDir, "multi-glob.mdc");
 		await writeFile(
 			multiPath,
-			["---", "description: Multi-glob rule", "alwaysApply: false", "globs: src/*.ts, lib/*.ts", "---", "", "Content."].join("\n"),
+			[
+				"---",
+				"description: Multi-glob rule",
+				"alwaysApply: false",
+				"globs: src/*.ts, lib/*.ts",
+				"---",
+				"",
+				"Content.",
+			].join("\n"),
 			"utf-8",
 		);
 		const rule2 = await readRule(multiPath, "cursor");

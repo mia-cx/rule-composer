@@ -121,8 +121,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".mdc",
 		SKILLS_DIR: ".cursor/skills/",
 		SKILLS_EXT: "SKILL.md",
+		AGENTS_DIR: ".cursor/agents/",
+		COMMANDS_DIR: ".cursor/commands/",
 		GLOBAL_RULES: "~/.cursor/rules/",
 		GLOBAL_SKILLS: "~/.cursor/skills/",
+		GLOBAL_AGENTS: "~/.cursor/agents/",
+		GLOBAL_COMMANDS: "~/.cursor/commands/",
 		RULE_EXAMPLE: ".cursor/rules/my-convention.mdc",
 	},
 	claude: {
@@ -131,8 +135,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "~/.claude/rules/",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".claude/rules/my-convention.md",
 	},
 	copilot: {
@@ -141,8 +149,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".instructions.md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".github/instructions/my-convention.instructions.md",
 	},
 	windsurf: {
@@ -151,8 +163,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".windsurf/my-convention.md",
 	},
 	cline: {
@@ -161,8 +177,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "Documents/Cline/",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".clinerules/my-convention.md",
 	},
 	zed: {
@@ -171,8 +191,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: "",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".rules",
 	},
 	"jetbrains-ai": {
@@ -181,8 +205,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: ".junie/",
 		SKILLS_EXT: ".md",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".aiassistant/rules/my-convention.md",
 	},
 	amazonq: {
@@ -191,8 +219,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".amazonq/rules/my-convention.md",
 	},
 	gemini: {
@@ -201,8 +233,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: ".md",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: ".gemini/my-convention.md",
 	},
 	aider: {
@@ -211,8 +247,12 @@ export const TOOL_VARIABLES: Record<ToolId, Record<string, string>> = {
 		RULES_EXT: "",
 		SKILLS_DIR: "",
 		SKILLS_EXT: "",
+		AGENTS_DIR: "",
+		COMMANDS_DIR: "",
 		GLOBAL_RULES: "",
 		GLOBAL_SKILLS: "",
+		GLOBAL_AGENTS: "",
+		GLOBAL_COMMANDS: "",
 		RULE_EXAMPLE: "CONVENTIONS.md",
 	},
 };
@@ -226,7 +266,17 @@ export const detectSourceTool = (content: string): ToolId | null => {
 	let bestTool: ToolId | null = null;
 	let bestScore = 0;
 
-	const SIGNAL_KEYS = ["RULES_DIR", "SKILLS_DIR", "GLOBAL_RULES", "GLOBAL_SKILLS", "RULE_EXAMPLE"] as const;
+	const SIGNAL_KEYS = [
+		"RULES_DIR",
+		"SKILLS_DIR",
+		"AGENTS_DIR",
+		"COMMANDS_DIR",
+		"GLOBAL_RULES",
+		"GLOBAL_SKILLS",
+		"GLOBAL_AGENTS",
+		"GLOBAL_COMMANDS",
+		"RULE_EXAMPLE",
+	] as const;
 
 	for (const toolId of TOOL_IDS) {
 		const vars = TOOL_VARIABLES[toolId];
@@ -339,6 +389,66 @@ export const extractGlobAnnotation = (content: string): { content: string; globs
 		.trim();
 
 	return { content: cleaned, globs, alwaysApply: false };
+};
+
+const RE_GLOBS = /^> \[!globs\](?: (.+))?$/;
+const RE_ALWAYS_APPLY = /^> \[!alwaysApply]\s*(true|false)$/i;
+const RE_PLAIN_BLOCKQUOTE = /^> ?(.*)$/;
+
+/**
+ * Extract inline section metadata from the start of content: plain blockquote (description),
+ * > [!globs], and > [!alwaysApply]. Strips all consumed lines and returns cleaned content.
+ * Used when decomposing a monolith so frontmatter (especially description) is reliable.
+ */
+export const extractSectionMetadata = (
+	content: string,
+): { content: string; description?: string; globs?: string; alwaysApply: boolean } => {
+	const lines = content.split("\n");
+	const startIdx = lines[0]?.trim().match(/^## /) ? 1 : 0;
+
+	const descriptionParts: string[] = [];
+	let globs: string | undefined;
+	let alwaysApply = true;
+	let bodyStart = startIdx;
+
+	for (let i = startIdx; i < lines.length; i++) {
+		const line = lines[i]!;
+		const trimmed = line.trim();
+		if (!trimmed) {
+			// Skip blank lines; they don't end the metadata block
+			continue;
+		}
+		const globsMatch = trimmed.match(RE_GLOBS);
+		if (globsMatch) {
+			globs = globsMatch[1]?.trim() || undefined;
+			alwaysApply = false;
+			bodyStart = i + 1;
+			continue;
+		}
+		const alwaysMatch = trimmed.match(RE_ALWAYS_APPLY);
+		if (alwaysMatch) {
+			alwaysApply = alwaysMatch[1]!.toLowerCase() === "true";
+			bodyStart = i + 1;
+			continue;
+		}
+		const quoteMatch = trimmed.match(RE_PLAIN_BLOCKQUOTE);
+		if (quoteMatch) {
+			descriptionParts.push(quoteMatch[1]!.trim());
+			bodyStart = i + 1;
+			continue;
+		}
+		// First non-metadata line
+		bodyStart = i;
+		break;
+	}
+
+	const description = descriptionParts.length > 0 ? descriptionParts.join(" ").trim().slice(0, 120) : undefined;
+
+	const prefix = startIdx > 0 ? lines.slice(0, startIdx).join("\n") : "";
+	const body = lines.slice(bodyStart).join("\n");
+	const cleaned = (prefix ? `${prefix}\n\n${body}` : body).replace(/\n{3,}/g, "\n\n").trim();
+
+	return { content: cleaned, description, globs, alwaysApply };
 };
 
 /** Parse any tool's rule file into a RuleFile */

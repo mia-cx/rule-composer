@@ -170,7 +170,12 @@ describe("decomposeResponseSchema", () => {
 
 	it("accepts directory field (flat, nested) and omits it (defaults undefined)", () => {
 		const withDir = decomposeResponseSchema.safeParse([
-			{ name: "unit-tests", description: "Unit testing conventions", headings: ["Unit Tests"], directory: "testing" },
+			{
+				name: "unit-tests",
+				description: "Unit testing conventions",
+				headings: ["Unit Tests"],
+				directory: "testing",
+			},
 		]);
 		expect(withDir.success).toBe(true);
 

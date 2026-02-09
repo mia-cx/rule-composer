@@ -1,5 +1,5 @@
-import { readdir, access } from "node:fs/promises";
-import { join, resolve, dirname } from "node:path";
+import { readdir, access, readFile } from "node:fs/promises";
+import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOOL_REGISTRY } from "./formats.js";
 import { readRule } from "./formats.js";
@@ -125,11 +125,34 @@ export const detectTools = async (cwd: string): Promise<DiscoveredSource[]> => {
 };
 
 /**
+ * Project display name for the agents-repo source label.
+ * Uses package.json "name" if present (strip @scope/), else basename of root path.
+ */
+export const getProjectDisplayName = async (rootPath: string): Promise<string> => {
+	const pkgPath = join(rootPath, "package.json");
+	try {
+		const raw = await readFile(pkgPath, "utf-8");
+		const pkg = JSON.parse(raw) as { name?: string };
+		const name = pkg?.name;
+		if (typeof name === "string" && name.length > 0) {
+			// "@scope/package" -> "package"
+			const lastSlash = name.lastIndexOf("/");
+			return lastSlash >= 0 ? name.slice(lastSlash + 1) : name;
+		}
+	} catch {
+		// no package.json or invalid JSON
+	}
+	const base = basename(rootPath);
+	return base || "project";
+};
+
+/**
  * Resolve the agents repo for bundled rules.
  * Three-tier resolution:
  * 1. Local rules/ directory (if running from the agents repo)
  * 2. GitHub fetch (future — not implemented in MVP)
  * 3. Bundled rules (from the published package)
+ * Labels use project name from package.json or root directory name, not "agents repo".
  */
 export const resolveAgentsRepo = async (cwd: string): Promise<DiscoveredSource | null> => {
 	const rules: RuleFile[] = [];
@@ -150,9 +173,10 @@ export const resolveAgentsRepo = async (cwd: string): Promise<DiscoveredSource |
 
 	// If we found local rules, use them
 	if (rules.length > 0) {
+		const projectName = await getProjectDisplayName(cwd);
 		return {
 			id: "agents-repo",
-			label: `agents repo — local (${rules.length} files)`,
+			label: `${projectName} — local (${rules.length} files)`,
 			rules,
 		};
 	}
@@ -178,9 +202,10 @@ export const resolveAgentsRepo = async (cwd: string): Promise<DiscoveredSource |
 
 			const allFound = [...foundRules, ...foundSkills];
 			if (allFound.length > 0) {
+				const projectName = await getProjectDisplayName(root);
 				return {
 					id: "agents-repo",
-					label: `agents repo — bundled (${allFound.length} files)`,
+					label: `${projectName} — bundled (${allFound.length} files)`,
 					rules: allFound,
 				};
 			}

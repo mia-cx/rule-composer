@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { writeFile, mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { detectTools, resolveAgentsRepo, scanDirectory, sortRulesByFilenamePrefix } from "../scanner.js";
+import { join } from "node:path";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { detectTools, getProjectDisplayName, resolveAgentsRepo, scanDirectory } from "../scanner.js";
 
 describe("sortRulesByFilenamePrefix", () => {
 	it("orders rules by numeric prefix (01, 02, …, 99) so 99-rule-name appears last", async () => {
@@ -77,6 +77,40 @@ describe("detectTools", () => {
 	});
 });
 
+describe("getProjectDisplayName", () => {
+	const tmpDir = join(tmpdir(), "arc-test-project-name");
+
+	beforeAll(async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+		await mkdir(tmpDir, { recursive: true });
+	});
+
+	afterAll(async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it("returns package.json name when present", async () => {
+		await writeFile(join(tmpDir, "package.json"), JSON.stringify({ name: "my-app" }), "utf-8");
+		expect(await getProjectDisplayName(tmpDir)).toBe("my-app");
+	});
+
+	it("strips scope from package name", async () => {
+		await writeFile(join(tmpDir, "package.json"), JSON.stringify({ name: "@mia-cx/rule-composer" }), "utf-8");
+		expect(await getProjectDisplayName(tmpDir)).toBe("rule-composer");
+	});
+
+	it("returns basename of root when no package.json", async () => {
+		const sub = join(tmpDir, "no-pkg");
+		await mkdir(sub, { recursive: true });
+		expect(await getProjectDisplayName(sub)).toBe("no-pkg");
+	});
+
+	it("returns 'project' when basename is empty", async () => {
+		// basename of "/" is "" on Unix
+		expect(await getProjectDisplayName("/")).toBe("project");
+	});
+});
+
 describe("resolveAgentsRepo", () => {
 	const tmpDir = join(tmpdir(), "arc-test-resolve");
 
@@ -111,6 +145,19 @@ describe("resolveAgentsRepo", () => {
 		// Should include both rule and skill
 		const hasSkill = result!.rules.some((r) => r.type === "skill");
 		expect(hasSkill).toBe(true);
+	});
+
+	it("uses project name from package.json in label when present", async () => {
+		const withPkg = join(tmpDir, "with-pkg");
+		await mkdir(withPkg, { recursive: true });
+		await writeFile(join(withPkg, "package.json"), JSON.stringify({ name: "my-rules-project" }), "utf-8");
+		await mkdir(join(withPkg, "rules"), { recursive: true });
+		await writeFile(join(withPkg, "rules", "one.mdc"), "---\ndescription: One\n---\n\n# One", "utf-8");
+
+		const result = await resolveAgentsRepo(withPkg);
+		expect(result).not.toBeNull();
+		expect(result!.label).toContain("local");
+		expect(result!.label.startsWith("my-rules-project")).toBe(true);
 	});
 
 	it("falls back to bundled rules when no local rules/ dir exists", async () => {

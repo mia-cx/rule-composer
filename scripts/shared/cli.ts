@@ -19,7 +19,7 @@ export const pickSources = async (
 		options.push({
 			value: agentsRepo.id,
 			label: agentsRepo.label,
-			hint: "bundled rules from agents repo",
+			hint: "bundled rules from this project",
 		});
 	}
 
@@ -60,7 +60,8 @@ export const selectRules = async (sources: DiscoveredSource[]): Promise<RuleFile
 		process.exit(0);
 	}
 
-	return result;
+	// Rule tree always yields RuleFile[] (category tree yields string[])
+	return result as RuleFile[];
 };
 
 /** Pick target tool for placeholder resolution */

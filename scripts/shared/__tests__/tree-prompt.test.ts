@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTree, getSelectedRules } from "../tree-prompt.js";
+import { buildTree, buildCategoryTree, getSelectedRules, getSelectedCategoryIds } from "../tree-prompt.js";
 import type { DiscoveredSource, RuleFile, TreeNode } from "../types.js";
 
 const makeRule = (name: string, path: string): RuleFile => ({
@@ -234,5 +234,52 @@ describe("getSelectedRules", () => {
 
 		// Empty tree
 		expect(getSelectedRules([])).toHaveLength(0);
+	});
+});
+
+describe("buildCategoryTree", () => {
+	it("returns one node per category with no children and selected true", () => {
+		const tree = buildCategoryTree([
+			{ id: "rules", label: "Rules" },
+			{ id: "skills", label: "Skills", hint: "Optional hint" },
+		]);
+		expect(tree).toHaveLength(2);
+		expect(tree[0]).toEqual({
+			id: "rules",
+			label: "Rules",
+			hint: undefined,
+			isDirectory: false,
+			expanded: false,
+			selected: true,
+		});
+		expect(tree[1]!.hint).toBe("Optional hint");
+		expect(tree[1]!.ruleFile).toBeUndefined();
+	});
+});
+
+describe("getSelectedCategoryIds", () => {
+	it("returns ids of selected leaf nodes", () => {
+		const tree: TreeNode[] = [
+			{ id: "rules", label: "Rules", isDirectory: false, expanded: false, selected: true },
+			{ id: "skills", label: "Skills", isDirectory: false, expanded: false, selected: false },
+			{ id: "agents", label: "Agents", isDirectory: false, expanded: false, selected: true },
+		];
+		expect(getSelectedCategoryIds(tree)).toEqual(["rules", "agents"]);
+	});
+
+	it("works with output of buildCategoryTree", () => {
+		const tree = buildCategoryTree([
+			{ id: "a", label: "A" },
+			{ id: "b", label: "B" },
+		]);
+		tree[1]!.selected = false;
+		expect(getSelectedCategoryIds(tree)).toEqual(["a"]);
+	});
+
+	it("returns empty array when none selected or tree empty", () => {
+		const tree = buildCategoryTree([{ id: "x", label: "X" }]);
+		tree[0]!.selected = false;
+		expect(getSelectedCategoryIds(tree)).toEqual([]);
+		expect(getSelectedCategoryIds([])).toEqual([]);
 	});
 });

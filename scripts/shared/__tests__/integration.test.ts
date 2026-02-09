@@ -6,7 +6,9 @@ import { tmpdir } from "node:os";
 import { splitByHeadings } from "../../decompose/splitter.js";
 import { extractProseDescription, buildRawContent } from "../../decompose/index.js";
 import { reconstructFromHeadings } from "../../decompose/matcher.js";
+import { extractSectionMetadata } from "../formats.js";
 import { readRule, writeAsDirectory } from "../formats.js";
+import { resolveHashToRelative } from "../link-resolution.js";
 import { compose, estimateTokens } from "../../compose/composer.js";
 import type { RuleFile } from "../types.js";
 import type { DecomposeResponse } from "../schemas.js";
@@ -270,5 +272,117 @@ describe("reconstruct integration", () => {
 		const { splits } = reconstructFromHeadings(input, metadata);
 
 		expect(splits[0]!.directory).toBe("core");
+	});
+});
+
+describe("link resolution round-trip", () => {
+	const tmpDir = join(tmpdir(), "arc-integration-link-roundtrip");
+
+	beforeAll(async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+		await mkdir(tmpDir, { recursive: true });
+	});
+
+	afterAll(async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it("compose → decompose → compose preserves link semantics (relative ↔ hash)", async () => {
+		// 1. Start with rules that have relative links
+		const rulesWithLinks: RuleFile[] = [
+			{
+				path: "",
+				name: "01-approach",
+				description: "Plan first",
+				body: "## Approach\n\nPlan first.",
+				rawContent: "---\ndescription: Plan first\n---\n\n## Approach\n\nPlan first.",
+				source: "cursor",
+				type: "rule",
+				hasPlaceholders: false,
+			},
+			{
+				path: "",
+				name: "02-conventions",
+				description: "Coding conventions",
+				body: "## Conventions\n\nUse early returns.",
+				rawContent: "---\ndescription: Coding conventions\n---\n\n## Conventions\n\nUse early returns.",
+				source: "cursor",
+				type: "rule",
+				hasPlaceholders: false,
+			},
+			{
+				path: "",
+				name: "03-rules-and-skills",
+				description: "Rules and skills",
+				body: "## Rules and Skills\n\nSee [Approach](./01-approach.mdc) and [Conventions](./02-conventions.mdc).",
+				rawContent:
+					"---\ndescription: Rules and skills\n---\n\n## Rules and Skills\n\nSee [Approach](./01-approach.mdc) and [Conventions](./02-conventions.mdc).",
+				source: "cursor",
+				type: "rule",
+				hasPlaceholders: false,
+			},
+		];
+
+		// 2. Compose → hash links in output (incrementHeadings: false so splitByHeadings sees H2)
+		const { content: composed } = await compose(rulesWithLinks, "cursor", {
+			numbered: true,
+			incrementHeadings: false,
+		});
+		expect(composed).toContain("[Approach](#1-approach)");
+		expect(composed).toContain("[Conventions](#2-conventions)");
+		expect(composed).not.toContain("./01-approach.mdc");
+
+		// 3. Decompose (split) → apply hash→relative
+		const splits = splitByHeadings(composed);
+		const ext = ".mdc";
+		const sectionMap = new Map<number, string>();
+		splits.forEach((split, i) => {
+			const prefix = `${String(i + 1).padStart(2, "0")}-`;
+			sectionMap.set(i + 1, `${prefix}${split.name}${ext}`);
+		});
+
+		const ruleFiles: RuleFile[] = splits.map((split) => {
+			const {
+				content: cleaned,
+				description: metaDesc,
+				globs,
+				alwaysApply,
+			} = extractSectionMetadata(split.content);
+			const cleanContent = resolveHashToRelative(cleaned, sectionMap);
+			const description = metaDesc ?? extractProseDescription(cleanContent);
+			const rawContent = buildRawContent(cleanContent, description, true, { globs, alwaysApply });
+			return {
+				path: "",
+				name: split.name,
+				description,
+				body: cleanContent,
+				rawContent,
+				source: "cursor" as const,
+				type: "rule" as const,
+				hasPlaceholders: /\{\{\w+\}\}/.test(cleanContent),
+			};
+		});
+
+		// 4. Verify decomposed content has relative links
+		const rulesSection = ruleFiles.find((r) => r.name === "rules-and-skills");
+		expect(rulesSection).toBeDefined();
+		expect(rulesSection!.body).toContain("[Approach](./01-approach.mdc)");
+		expect(rulesSection!.body).toContain("[Conventions](./02-conventions.mdc)");
+
+		// 5. Write decomposed files, read back, compose → hash links restored
+		// (readRule yields rule.name from filename, e.g. "01-approach", so sectionMap matches link targets)
+		await writeAsDirectory(ruleFiles, tmpDir, "cursor", { numbered: true });
+		const decomposedFiles = (await readdir(tmpDir)).filter((f) => f.endsWith(".mdc"));
+		const rulesFromDisk: RuleFile[] = [];
+		for (const file of decomposedFiles.sort()) {
+			rulesFromDisk.push(await readRule(join(tmpDir, file), "cursor"));
+		}
+
+		const { content: recomposed } = await compose(rulesFromDisk, "cursor", {
+			numbered: true,
+			incrementHeadings: false,
+		});
+		expect(recomposed).toContain("[Approach](#1-approach)");
+		expect(recomposed).toContain("[Conventions](#2-conventions)");
 	});
 });
