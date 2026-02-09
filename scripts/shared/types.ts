@@ -14,8 +14,8 @@ export const TOOL_IDS = [
 
 export type ToolId = (typeof TOOL_IDS)[number];
 
-/** Special source identifier for the agents repo itself */
-export type SourceId = ToolId | "agents-repo";
+/** Special source identifiers: agents repo (local) or bundled package rules */
+export type SourceId = ToolId | "agents-repo" | "bundled";
 
 /** Configuration for a supported tool */
 export interface ToolConfig {

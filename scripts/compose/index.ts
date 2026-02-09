@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 import { stat, mkdir } from "node:fs/promises";
 import * as p from "@clack/prompts";
 import color from "picocolors";
-import { detectTools, resolveAgentsRepo, scanDirectory } from "../shared/scanner.js";
+import { detectTools, getBundledSource, resolveAgentsRepo, scanDirectory } from "../shared/scanner.js";
 import { readRule } from "../shared/formats.js";
 import {
 	selectRules,
@@ -19,12 +19,19 @@ import { optimize, resolvePromptPath } from "../shared/openrouter.js";
 import { generateVariants } from "./variants.js";
 import type { DiscoveredSource, OutputTarget } from "../shared/types.js";
 
-/** Build the list of sources for the tree (all detected + agents-repo when no input path). Used so compose skips a separate "pick sources" step. */
+/** Build the list of sources for the tree (detected + agents-repo + bundled when no input path). Bundled is always included when available so e.g. pnpm dlx can compose from package rules. */
 export const buildComposeSources = (
 	detected: DiscoveredSource[],
 	agentsRepo: DiscoveredSource | null,
+	bundled: DiscoveredSource | null,
 	hasInputPath: boolean,
-): DiscoveredSource[] => (hasInputPath ? detected : agentsRepo ? [...detected, agentsRepo] : detected);
+): DiscoveredSource[] => {
+	if (hasInputPath) return detected;
+	const withAgents = agentsRepo ? [...detected, agentsRepo] : detected;
+	// Add bundled if we have it and it's not already agentsRepo (tier-3 fallback)
+	const addBundled = bundled && (!agentsRepo || agentsRepo.id === "agents-repo");
+	return addBundled ? [...withAgents, bundled] : withAgents;
+};
 
 export const runCompose = async (inputPath?: string, outputPath?: string): Promise<void> => {
 	const cwd = process.cwd();
@@ -65,7 +72,6 @@ export const runCompose = async (inputPath?: string, outputPath?: string): Promi
 		// 1. Detect tools in CWD
 		detected = await detectTools(cwd);
 		agentsRepo = await resolveAgentsRepo(cwd);
-
 		if (detected.length > 0) {
 			p.log.info("Detected tools in CWD:");
 			for (const source of detected) {
@@ -74,8 +80,9 @@ export const runCompose = async (inputPath?: string, outputPath?: string): Promi
 		}
 	}
 
-	// 2. Build sources (all detected + agents-repo if present); tree shows them as directories
-	const sources = buildComposeSources(detected, agentsRepo, !!inputPath);
+	// 2. Build sources (detected + agents-repo + bundled when no input path)
+	const bundled = inputPath ? null : await getBundledSource();
+	const sources = buildComposeSources(detected, agentsRepo, bundled, !!inputPath);
 	if (sources.length === 0) {
 		p.log.error("No sources to read from.");
 		return;

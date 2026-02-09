@@ -67,7 +67,9 @@ export const selectRules = async (sources: DiscoveredSource[]): Promise<RuleFile
 /** Pick target tool for placeholder resolution */
 export const pickTargetTool = async (detected: DiscoveredSource[]): Promise<ToolId> => {
 	// Auto-detect: if only one tool is detected in CWD, suggest it
-	const detectedTools = detected.filter((s) => s.id !== "agents-repo").map((s) => s.id as ToolId);
+	const detectedTools = detected
+		.filter((s) => s.id !== "agents-repo" && s.id !== "bundled")
+		.map((s) => s.id as ToolId);
 
 	const options = TOOL_IDS.map((id) => ({
 		value: id,

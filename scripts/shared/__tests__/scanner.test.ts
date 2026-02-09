@@ -2,7 +2,14 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { detectTools, getProjectDisplayName, resolveAgentsRepo, scanDirectory } from "../scanner.js";
+import {
+	detectTools,
+	getBundledSource,
+	getPackageRoot,
+	getProjectDisplayName,
+	resolveAgentsRepo,
+	scanDirectory,
+} from "../scanner.js";
 
 describe("sortRulesByFilenamePrefix", () => {
 	it("orders rules by numeric prefix (01, 02, …, 99) so 99-rule-name appears last", async () => {
@@ -165,14 +172,37 @@ describe("resolveAgentsRepo", () => {
 		await mkdir(emptyDir, { recursive: true });
 
 		const result = await resolveAgentsRepo(emptyDir);
-		// When running from within the agents repo, tier 3 (bundled fallback)
-		// finds the real rules/ dir. In a truly isolated environment it would be null.
-		// We verify the fallback mechanism works rather than asserting null.
+		// When running from within the repo, tier 3 (getBundledSource) finds rules/.
+		// In a truly isolated environment it would be null.
 		if (result) {
-			expect(result.id).toBe("agents-repo");
-			expect(result.label).toContain("bundled");
+			expect(result.id).toBe("bundled");
+			expect(result.label).toContain("Bundled");
 		} else {
 			expect(result).toBeNull();
+		}
+	});
+});
+
+describe("getPackageRoot", () => {
+	it("returns a path containing rules/ when run from repo", async () => {
+		const root = await getPackageRoot();
+		// When run from repo, scanner lives under scripts/shared or dist/shared
+		if (root) {
+			const { access } = await import("node:fs/promises");
+			await expect(access(join(root, "rules"))).resolves.toBeUndefined();
+		}
+	});
+});
+
+describe("getBundledSource", () => {
+	it("returns a source with id bundled and rules when run from repo", async () => {
+		const source = await getBundledSource();
+		// When run from repo, package has rules/ and skills/
+		if (source) {
+			expect(source.id).toBe("bundled");
+			expect(source.label).toMatch(/Bundled.*\d+ files/);
+			expect(Array.isArray(source.rules)).toBe(true);
+			expect(source.rules.every((r) => r.source === "bundled")).toBe(true);
 		}
 	});
 });

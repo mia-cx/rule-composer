@@ -9,6 +9,7 @@ import { getApiKeyInteractive } from "../shared/cli.js";
 import { callLLM, resolvePromptPath } from "../shared/openrouter.js";
 import { decomposeResponseSchema } from "../shared/schemas.js";
 import type { DecomposeResponse } from "../shared/schemas.js";
+import { getPackageRoot } from "../shared/scanner.js";
 import { TOOL_IDS } from "../shared/types.js";
 import {
 	TOOL_REGISTRY,
@@ -272,7 +273,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 			inputName = basename(absPath);
 		}
 	} else {
-		// 1. Detect single-file rules in CWD
+		// 1. Detect single-file rules in CWD and in bundled package
 		const detected: Array<{ name: string; path: string }> = [];
 
 		for (const file of SINGLE_FILE_RULES) {
@@ -282,8 +283,18 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 			}
 		}
 
+		const bundledRoot = await getPackageRoot();
+		if (bundledRoot) {
+			for (const file of SINGLE_FILE_RULES) {
+				const filePath = join(bundledRoot, file);
+				if (await exists(filePath)) {
+					detected.push({ name: `Bundled: ${file}`, path: filePath });
+				}
+			}
+		}
+
 		if (detected.length === 0) {
-			p.log.warn("No single-file rules detected in the current directory.");
+			p.log.warn("No single-file rules detected in the current directory or bundled package.");
 			p.log.info(`Looked for: ${SINGLE_FILE_RULES.join(", ")}`);
 			return;
 		}

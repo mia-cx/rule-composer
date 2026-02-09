@@ -3,7 +3,7 @@ import { join, resolve, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TOOL_REGISTRY } from "./formats.js";
 import { readRule } from "./formats.js";
-import type { ToolId, DiscoveredSource, RuleFile } from "./types.js";
+import type { ToolId, DiscoveredSource, RuleFile, SourceId } from "./types.js";
 import { TOOL_IDS } from "./types.js";
 
 const RULE_EXTENSIONS = new Set([".mdc", ".md"]);
@@ -36,7 +36,7 @@ const exists = async (path: string): Promise<boolean> => {
  */
 export const walkDir = async (
 	dir: string,
-	source: ToolId | "agents-repo",
+	source: SourceId,
 	type: "rule" | "skill",
 ): Promise<RuleFile[]> => {
 	const rules: RuleFile[] = [];
@@ -182,35 +182,53 @@ export const resolveAgentsRepo = async (cwd: string): Promise<DiscoveredSource |
 	}
 
 	// Tier 3: Bundled rules (from the published package)
+	return getBundledSource();
+};
+
+const PACKAGE_ROOT_CANDIDATES = ((): string[] => {
 	const __dirname = dirname(fileURLToPath(import.meta.url));
-	// In published package: dist/index.js -> package root is ../
-	// In dev: scripts/shared/scanner.ts -> package root is ../../
-	const possibleRoots = [
-		resolve(__dirname, ".."), // published: dist/ -> root
-		resolve(__dirname, "../.."), // dev: scripts/shared/ -> root
+	// Published: dist/shared/scanner.js -> ../.. is package root
+	// Dev: scripts/shared/scanner.ts -> ../.. is package root
+	return [
+		resolve(__dirname, ".."), // dist/ or scripts/
+		resolve(__dirname, "../.."), // package root
 	];
+})();
 
-	for (const root of possibleRoots) {
-		const bundledRulesDir = join(root, "rules");
-		const bundledSkillsDir = join(root, "skills");
-
-		if (await exists(bundledRulesDir)) {
-			const foundRules = await walkDir(bundledRulesDir, "agents-repo", "rule");
-			const foundSkills = (await exists(bundledSkillsDir))
-				? await walkDir(bundledSkillsDir, "agents-repo", "skill")
-				: [];
-
-			const allFound = [...foundRules, ...foundSkills];
-			if (allFound.length > 0) {
-				const projectName = await getProjectDisplayName(root);
-				return {
-					id: "agents-repo",
-					label: `${projectName} — bundled (${allFound.length} files)`,
-					rules: allFound,
-				};
-			}
-		}
+/**
+ * Resolve the package root (directory containing rules/). Used for bundled source and decompose.
+ * Returns null if not running from the rule-composer package.
+ */
+export const getPackageRoot = async (): Promise<string | null> => {
+	for (const root of PACKAGE_ROOT_CANDIDATES) {
+		if (await exists(join(root, "rules"))) return root;
 	}
-
 	return null;
+};
+
+/**
+ * Return the bundled rules/skills from the published package (useful for pnpm dlx when no local rules).
+ * Uses package root resolution so it works from dist/ (published) or scripts/ (dev).
+ */
+export const getBundledSource = async (): Promise<DiscoveredSource | null> => {
+	const root = await getPackageRoot();
+	if (!root) return null;
+
+	const bundledRulesDir = join(root, "rules");
+	const bundledSkillsDir = join(root, "skills");
+
+	const foundRules = await walkDir(bundledRulesDir, "bundled", "rule");
+	const foundSkills = (await exists(bundledSkillsDir))
+		? await walkDir(bundledSkillsDir, "bundled", "skill")
+		: [];
+
+	const allFound = [...foundRules, ...foundSkills];
+	if (allFound.length === 0) return null;
+
+	const projectName = await getProjectDisplayName(root);
+	return {
+		id: "bundled",
+		label: `Bundled (${projectName}) — ${allFound.length} files`,
+		rules: allFound,
+	};
 };
