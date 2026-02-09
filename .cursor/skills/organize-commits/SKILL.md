@@ -1,6 +1,10 @@
 ---
 name: organize-commits
-description: Splits uncommitted changes into a small set of logical, single-concern git commits. Use when the user wants to organize changes into logical commits, split a large change into multiple commits, or create a series of conventional commits from the current working tree.
+description: >-
+  Splits uncommitted changes into a small set of logical, single-concern git
+  commits. Use when the user wants to organize changes into logical commits,
+  split a large change into multiple commits, or create a series of conventional
+  commits from the current working tree.
 ---
 
 # Organize Changes Into Logical Commits
