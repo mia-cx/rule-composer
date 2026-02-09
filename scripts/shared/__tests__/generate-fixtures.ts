@@ -54,13 +54,14 @@ const main = async () => {
 	await mkdir(DECOMPOSE_DIR, { recursive: true });
 	await writeAsDirectory(ruleFiles, DECOMPOSE_DIR, "cursor");
 
-	const decomposeFiles = await readdir(DECOMPOSE_DIR);
-	console.log(`Wrote ${decomposeFiles.length} files to decompose-expected/: ${decomposeFiles.join(", ")}`);
+	const decomposeRulesDir = join(DECOMPOSE_DIR, "rules");
+	const decomposeFiles = await readdir(decomposeRulesDir);
+	console.log(`Wrote ${decomposeFiles.length} files to decompose-expected/rules/: ${decomposeFiles.join(", ")}`);
 
 	// 4. Read back the written rule files (to get the exact content writeAsDirectory produced)
 	const readBackRules: RuleFile[] = [];
 	for (const file of decomposeFiles.filter((f) => f.endsWith(".mdc"))) {
-		const rule = await readRule(join(DECOMPOSE_DIR, file), "cursor");
+		const rule = await readRule(join(decomposeRulesDir, file), "cursor");
 		readBackRules.push(rule);
 	}
 

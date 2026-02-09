@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { readFile, readdir, mkdir, rm } from "node:fs/promises";
+import { readFile, readdir, mkdir, rm, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
@@ -24,6 +24,17 @@ const getInput = async () => readFile(INPUT_FILE, "utf-8");
 
 /** Read a golden file */
 const readGolden = async (dir: string, file: string) => readFile(join(dir, file), "utf-8");
+
+/** Golden decompose rules: use decompose-expected/rules/ if present, else flat decompose-expected/ (legacy). */
+const getGoldenRulesDir = async () => {
+	const withRules = join(DECOMPOSE_EXPECTED, "rules");
+	try {
+		await access(withRules);
+		return withRules;
+	} catch {
+		return DECOMPOSE_EXPECTED;
+	}
+};
 
 describe("decompose integration", () => {
 	const tmpDir = join(tmpdir(), "arc-integration-decompose");
@@ -111,12 +122,14 @@ describe("decompose integration", () => {
 
 		await writeAsDirectory(ruleFiles, tmpDir, "cursor");
 
-		// Compare each file against golden
-		const expectedFiles = (await readdir(DECOMPOSE_EXPECTED)).filter((f) => f.endsWith(".mdc"));
+		// Compare each file against golden (written to tmpDir/rules/ in canonical layout; golden in decompose-expected/rules/ or flat legacy)
+		const goldenRulesDir = await getGoldenRulesDir();
+		const expectedFiles = (await readdir(goldenRulesDir)).filter((f) => f.endsWith(".mdc"));
+		const rulesDir = join(tmpDir, "rules");
 
 		for (const file of expectedFiles) {
-			const actual = await readFile(join(tmpDir, file), "utf-8");
-			const expected = await readGolden(DECOMPOSE_EXPECTED, file);
+			const actual = await readFile(join(rulesDir, file), "utf-8");
+			const expected = await readFile(join(goldenRulesDir, file), "utf-8");
 			expect(actual).toBe(expected);
 		}
 	});
@@ -126,10 +139,11 @@ describe("compose integration", () => {
 	let rules: RuleFile[];
 
 	beforeAll(async () => {
-		const files = (await readdir(DECOMPOSE_EXPECTED)).filter((f) => f.endsWith(".mdc"));
+		const goldenRulesDir = await getGoldenRulesDir();
+		const files = (await readdir(goldenRulesDir)).filter((f) => f.endsWith(".mdc"));
 		rules = [];
 		for (const file of files) {
-			const rule = await readRule(join(DECOMPOSE_EXPECTED, file), "cursor");
+			const rule = await readRule(join(goldenRulesDir, file), "cursor");
 			rules.push(rule);
 		}
 	});
@@ -372,10 +386,11 @@ describe("link resolution round-trip", () => {
 		// 5. Write decomposed files, read back, compose → hash links restored
 		// (readRule yields rule.name from filename, e.g. "01-approach", so sectionMap matches link targets)
 		await writeAsDirectory(ruleFiles, tmpDir, "cursor", { numbered: true });
-		const decomposedFiles = (await readdir(tmpDir)).filter((f) => f.endsWith(".mdc"));
+		const rulesOutDir = join(tmpDir, "rules");
+		const decomposedFiles = (await readdir(rulesOutDir)).filter((f) => f.endsWith(".mdc"));
 		const rulesFromDisk: RuleFile[] = [];
 		for (const file of decomposedFiles.sort()) {
-			rulesFromDisk.push(await readRule(join(tmpDir, file), "cursor"));
+			rulesFromDisk.push(await readRule(join(rulesOutDir, file), "cursor"));
 		}
 
 		const { content: recomposed } = await compose(rulesFromDisk, "cursor", {
