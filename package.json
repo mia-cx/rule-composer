@@ -1,13 +1,42 @@
 {
   "name": "rule-composer",
   "version": "0.1.0",
-  "description": "Cross-tool CLI for composing, converting, and optimizing AI coding agent rules",
+  "description": "Compose agent rules across coding tools.",
+  "keywords": [
+    "cursor",
+    "rules",
+    "agent",
+    "compose",
+    "decompose",
+    "sync",
+    "coding-tools",
+    "mdc",
+    "ai",
+    "claude",
+    "cline",
+    "zed",
+    "windsurf",
+    "copilot"
+  ],
+  "homepage": "https://github.com/mia-cx/rule-composer#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mia-cx/rule-composer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mia-cx/rule-composer/issues"
+  },
+  "author": {
+    "name": "mia-riezebos",
+    "email": "mia@mia.cx",
+    "url": "https://github.com/mia-riezebos"
+  },
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "bin": {
-    "agent-rule-composer": "./dist/index.js"
+    "rule-composer": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -32,16 +61,6 @@
     "test:watch": "vitest",
     "generate-fixtures": "tsx scripts/shared/__tests__/generate-fixtures.ts"
   },
-  "devDependencies": {
-    "@eslint/markdown": "^7.5.1",
-    "@types/node": "^22.0.0",
-    "eslint": "^10.0.0",
-    "tsup": "^8.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.7.0",
-    "typescript-eslint": "^8.54.0",
-    "vitest": "^3.0.0"
-  },
   "dependencies": {
     "@clack/core": "^0.4.0",
     "@clack/prompts": "^0.9.0",
@@ -51,5 +70,15 @@
     "picocolors": "^1.1.0",
     "prettier": "^3.8.1",
     "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@eslint/markdown": "^7.5.1",
+    "@types/node": "^22.0.0",
+    "eslint": "^10.0.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^3.0.0"
   }
 }
