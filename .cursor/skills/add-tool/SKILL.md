@@ -1,6 +1,6 @@
 # Add a New Coding Tool
 
-Add support for a new AI coding tool to agent-rule-composer.
+Add support for a new AI coding tool to rule-composer.
 
 ## Prerequisites
 

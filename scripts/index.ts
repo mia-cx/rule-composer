@@ -57,7 +57,7 @@ const parseArgs = (
 const main = async (): Promise<void> => {
 	const { command, inputPath, output, syncDirection, repo, tool, yes, cursorDb } = parseArgs(process.argv);
 
-	p.intro(`agent-rule-composer v${VERSION}`);
+	p.intro(`rule-composer v${VERSION}`);
 
 	switch (command) {
 		case "compose": {

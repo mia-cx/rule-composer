@@ -47,7 +47,7 @@ export const callLLM = async (
 				Authorization: `Bearer ${apiKey}`,
 				"Content-Type": "application/json",
 				"HTTP-Referer": "https://github.com/mia-cx/agents",
-				"X-Title": "agent-rule-composer",
+				"X-Title": "rule-composer",
 			},
 			body: JSON.stringify({
 				model: DEFAULT_MODEL,

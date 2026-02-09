@@ -6,7 +6,7 @@ modified: 2026-02-08
 
 # Tool Registry
 
-agent-rule-composer supports 10 AI coding tools. Each tool has a configuration defining where it stores rules and a variable map for placeholder resolution.
+rule-composer supports 10 AI coding tools. Each tool has a configuration defining where it stores rules and a variable map for placeholder resolution.
 
 ## Supported Tools
 
