@@ -5,18 +5,18 @@ description: Splits uncommitted changes into a small set of logical, single-conc
 
 # Organize Changes Into Logical Commits
 
-You organize uncommitted changes into logical, single-concern commits (e.g. one per: config, formatting, behavior, tests, docs). Follow the workflow below.
+You organize uncommitted changes into atomic, single-concern commits (e.g. one per: config, formatting, behavior, tests, docs) so history stays readable. Follow the workflow below.
 
 ## Workflow
 
 ### 1. Inspect current state
 
-- Run `git status` and `git diff` (and `git diff --staged` if anything is already staged).
-- Note which files and areas changed (config, source, tests, docs, rules, etc.).
+- Run `git status`, `git diff`, and (if anything is staged) `git diff --staged`.
+- Record which files and areas changed: config, source, tests, docs, rules.
 
 ### 2. Group by logical concern
 
-Group changes into **concerns**, not one commit per file. Typical groups:
+Assign each change to one **concern**; one commit per concern, not per file. Use this mapping:
 
 | Concern            | Examples                                         | Conventional type              |
 | ------------------ | ------------------------------------------------ | ------------------------------ |
@@ -27,61 +27,62 @@ Group changes into **concerns**, not one commit per file. Typical groups:
 | Docs / rules       | AGENTS.md, docs content, .mdc rules, skills      | `docs`                         |
 | Misc / cleanup     | Unrelated small fixes                            | `chore` or split when feasible |
 
-If a **single file** has edits that span two concerns (e.g. code + comment), prefer one commit per concern and use `git add -p` (patch) for that file, or list the file under the dominant concern and note the mix.
+When a single file has edits that span two concerns, assign it to the dominant concern and note the mix.
 
-### 3. Propose a commit plan
+### 3. Creating commands
 
-Present an ordered list of commits **before** changing the repo:
+Produce an ordered commit plan (scope + message per commit), then the exact commands. Keep commits atomic; order them so history reads logically: config → code → tests → docs.
 
-- **Scope**: which paths or hunks go in this commit.
-- **Message**: conventional style `type(scope): subject` (e.g. `chore(deps): add eslint and prettier config`).
-- **Body** (optional): add when the subject is not enough.
+1. **Proposal**: Output a list or table of commits. For each commit include scope (paths) and message. Use short path forms or globs (e.g. `scripts/shared/*.ts`).
+2. **Commands**: Output one set of copy-pastable commands only. Use globs in `git add` (e.g. `git add "**/organize-commits/SKILL.md"` or `git add scripts/shared/*.ts`); git expands globs. Each line: `bash\ngit add <paths> && git commit -m "<message>" [ -m "<body>" ] --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"\n`. Always include the trailer. If there are more than 3 commits, put all commands in a single code block (one command per line) and omit the numbered list.
+3. **Close**: Ask: **"Want to change anything? Let me know, and I'll give you a new proposal and commands."**
 
-Order commits so the history reads logically (e.g. config → code → tests → docs). Ask the user to confirm or adjust the plan.
+### 4. Revisions
 
-### 4. Execute commits
-
-For each commit in order:
-
-1. Stage only the files (or patches) for that concern: `git add <paths>` or `git add -p <file>`.
-2. Commit with the agreed message: `git commit -m "type(scope): subject"` or `-m "subject"` plus `-m "body"`.
-3. Proceed to the next commit.
-
-If the user prefers to run commands themselves, output a copy-pastable list of `git add` and `git commit` steps instead of executing.
+When the user requests changes: update the plan (merge, split, reword, or reorder commits), then output a new proposal, command list, and the same closing question.
 
 ## Commit message format
 
-- **Conventional commits**: `type(scope): subject`. Common types: `chore`, `feat`, `fix`, `docs`, `test`, `style`, `refactor`.
-- **Subject**: present tense, under ~72 chars, no period at the end.
-- **Body**: add when the subject is not enough to explain why or what.
+- **Conventional commits**: `type(scope): subject`. Types: `chore`, `feat`, `fix`, `docs`, `test`, `style`, `refactor`.
+- **Subject**: Present tense, under ~72 chars, no trailing period.
+- **Body**: Add when the subject is insufficient. Use a second `-m "<body>"` in the command when you need to explain why or what, add context or rationale, or call out breaking changes or migration steps.
 
-Project rules may further customize this (e.g. `.clinerules/*.md` with "generate commit message" guidance).
+Project rules may override (e.g. `.clinerules/*.md` with commit-message guidance).
 
-## Example plan
+## Example proposal and commands
 
-Given unstaged changes across config, compose logic, tests, and docs:
+Example output shape:
 
-```text
-Commit 1 — chore(config): add ESLint and Prettier config
-  .eslintrc.cjs, .prettierrc, package.json (scripts/lint)
+| Concern            | Files / hunks                                     | Summary / commit message                                               |
+| ------------------ | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| Config / tooling   | `package.json`                                    | chore(build): add validate script and @types/node                      |
+| Formatting only    | `scripts/shared/*.ts`                             | style(formats): ensure blank line after frontmatter in buildRawContent |
+| Feature / behavior | `scripts/decompose/index.ts`                      | fix(decompose): correct section index and guard empty headings         |
+| Tests              | `scripts/decompose/__tests__/placeholder.test.ts` | test(decompose): add placeholder resolution tests                      |
+| Docs / rules       | `apps/docs/content/*.md`, `.cursor/rules/*.mdc`   | docs: document validate and sync, add PRIVATE\_ env rule               |
 
-Commit 2 — style: ensure blank line after frontmatter
-  scripts/shared/formats.ts (or relevant formatter)
+````bash
+git add package.json && git commit -m "chore(build): add validate script and @types/node" --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"```
+````
 
-Commit 3 — feat(compose): apply order and sequential section numbers
-  scripts/compose/*.ts, scripts/shared/composer.ts
+````bash
+git add scripts/shared/*.ts && git commit -m "style(formats): ensure blank line after frontmatter in buildRawContent" --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"```
+````
 
-Commit 4 — test(compose): consolidate and fix compose tests
-  scripts/compose/__tests__/*.ts
+````bash
+git add scripts/decompose/index.ts && git commit -m "fix(decompose): correct section index and guard empty headings" --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"```
+````
 
-Commit 5 — docs: update AGENTS, rules, variants and misc
-  AGENTS.md, apps/docs/content/**, .cursor/rules/**, rules/**, scripts/compose/variants.ts
-```
+````bash
+git add scripts/decompose/__tests__/placeholder.test.ts && git commit -m "test(decompose): add placeholder resolution tests" --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"```
+````
 
-Run the five `git add` / `git commit` steps in that order.
+````bash
+git add apps/docs/content/*.md .cursor/rules/*.mdc && git commit -m "docs: document validate and sync, add PRIVATE_ env rule" --trailer "Co-authored-by: Cursor <cursoragent@cursor.com>"```
+````
 
 ## Checklist before finishing
 
-- [ ] All changes are assigned to exactly one commit (no leftover unstaged edits unless intended).
-- [ ] Commit messages follow conventional style and project preferences.
-- [ ] Order of commits makes sense for someone reading the history later.
+- [ ] Proposal (list or table) with scope and message per commit.
+- [ ] Numbered command list with trailer; body (`-m`) only when needed.
+- [ ] Commits are atomic; every change in exactly one commit; messages conventional.
