@@ -147,17 +147,7 @@ describe("addSectionNumbers", () => {
 	});
 
 	it("renders 99. Rule Name as 5. Rule Name when it is the 5th H2", () => {
-		const input = [
-			"## One",
-			"",
-			"## Two",
-			"",
-			"## Three",
-			"",
-			"## Four",
-			"",
-			"## 99. Rule Name",
-		].join("\n");
+		const input = ["## One", "", "## Two", "", "## Three", "", "## Four", "", "## 99. Rule Name"].join("\n");
 		const result = addSectionNumbers(input);
 		expect(result).toContain("## 5. Rule Name");
 		expect(result).not.toContain("## 99.");
@@ -249,6 +239,58 @@ describe("compose glob embedding", () => {
 
 		const { content } = await compose(rules, "cursor", { embedGlobs: false });
 		expect(content).not.toContain("[!globs]");
+	});
+});
+
+describe("compose link resolution", () => {
+	it("resolves relative rule links to hash anchors when numbered", async () => {
+		const rules = [
+			makeRule({
+				name: "01-approach",
+				body: "## Approach\n\nPlan first.",
+				rawContent: "## Approach\n\nPlan first.",
+			}),
+			makeRule({
+				name: "02-conventions",
+				body: "## Conventions\n\nUse returns.",
+				rawContent: "## Conventions\n\nUse returns.",
+			}),
+			makeRule({
+				name: "03-task-management",
+				body: "## Task\n\nUse todos.",
+				rawContent: "## Task\n\nUse todos.",
+			}),
+			makeRule({ name: "04-problem-solving", body: "## Problem\n\nDebug.", rawContent: "## Problem\n\nDebug." }),
+			makeRule({
+				name: "05-workspace",
+				body: "## Workspace\n\nMonorepo.",
+				rawContent: "## Workspace\n\nMonorepo.",
+			}),
+			makeRule({
+				name: "06-rules-and-skills",
+				body: "## Rules and Skills\n\nSee [Coding Conventions](./02-conventions.mdc) and [Task Management](./03-task-management.mdc).",
+				rawContent:
+					"## Rules and Skills\n\nSee [Coding Conventions](./02-conventions.mdc) and [Task Management](./03-task-management.mdc).",
+			}),
+		];
+
+		const { content } = await compose(rules, "cursor", { numbered: true });
+		expect(content).toContain("[Coding Conventions](#2-conventions)");
+		expect(content).toContain("[Task Management](#3-task-management)");
+	});
+
+	it("skips link resolution when resolveLinks is false", async () => {
+		const rules = [
+			makeRule({
+				name: "06-rules-and-skills",
+				body: "## Rules\n\nSee [Conventions](./02-conventions.mdc).",
+				rawContent: "## Rules\n\nSee [Conventions](./02-conventions.mdc).",
+			}),
+		];
+
+		const { content } = await compose(rules, "cursor", { resolveLinks: false });
+		expect(content).toContain("./02-conventions.mdc");
+		expect(content).not.toContain("#2-conventions");
 	});
 });
 

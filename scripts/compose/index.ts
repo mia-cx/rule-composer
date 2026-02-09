@@ -5,7 +5,6 @@ import color from "picocolors";
 import { detectTools, resolveAgentsRepo, scanDirectory } from "../shared/scanner.js";
 import { readRule } from "../shared/formats.js";
 import {
-	pickSources,
 	selectRules,
 	pickTargetTool,
 	askOptimize,
@@ -19,6 +18,13 @@ import { writeAsSingleFile, writeAsDirectory, formatMarkdown } from "../shared/f
 import { optimize, resolvePromptPath } from "../shared/openrouter.js";
 import { generateVariants } from "./variants.js";
 import type { DiscoveredSource, OutputTarget } from "../shared/types.js";
+
+/** Build the list of sources for the tree (all detected + agents-repo when no input path). Used so compose skips a separate "pick sources" step. */
+export const buildComposeSources = (
+	detected: DiscoveredSource[],
+	agentsRepo: DiscoveredSource | null,
+	hasInputPath: boolean,
+): DiscoveredSource[] => (hasInputPath ? detected : agentsRepo ? [...detected, agentsRepo] : detected);
 
 export const runCompose = async (inputPath?: string, outputPath?: string): Promise<void> => {
 	const cwd = process.cwd();
@@ -68,14 +74,14 @@ export const runCompose = async (inputPath?: string, outputPath?: string): Promi
 		}
 	}
 
-	// 2. Pick sources (skip if input path provided — already resolved)
-	const sources = inputPath ? detected : await pickSources(detected, agentsRepo);
+	// 2. Build sources (all detected + agents-repo if present); tree shows them as directories
+	const sources = buildComposeSources(detected, agentsRepo, !!inputPath);
 	if (sources.length === 0) {
-		p.log.error("No sources selected.");
+		p.log.error("No sources to read from.");
 		return;
 	}
 
-	// 3. Select individual rules via tree
+	// 3. Select rules via tree (sources form top-level directories in the tree)
 	let selectedRules = await selectRules(sources);
 	if (selectedRules.length === 0) {
 		p.log.error("No rules selected.");

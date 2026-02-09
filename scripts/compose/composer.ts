@@ -2,6 +2,7 @@ import matter from "gray-matter";
 import { countTokens } from "gpt-tokenizer";
 import type { RuleFile, ToolId } from "../shared/types.js";
 import { resolvePlaceholders, quoteGlobs, formatMarkdown } from "../shared/formats.js";
+import { resolveRelativeToHash } from "../shared/link-resolution.js";
 
 /** Strip YAML frontmatter from a rule's raw content and return the body */
 const stripFrontmatter = (rule: RuleFile): string => {
@@ -56,6 +57,8 @@ export interface ComposeOptions {
 	incrementHeadings?: boolean;
 	/** Embed > [!globs] callouts for scoped rules (default: true) */
 	embedGlobs?: boolean;
+	/** Resolve relative rule links to hash anchors (default: true) */
+	resolveLinks?: boolean;
 }
 
 /** Compose selected rules into a single markdown document (Prettier-formatted). */
@@ -94,6 +97,14 @@ export const compose = async (
 
 	if (options?.numbered) {
 		content = addSectionNumbers(content);
+	}
+
+	if (options?.resolveLinks !== false) {
+		const sectionMap = new Map<string, number>();
+		selected.forEach((rule, i) => {
+			sectionMap.set(rule.name, i + 1);
+		});
+		content = resolveRelativeToHash(content, sectionMap);
 	}
 
 	content = await formatMarkdown(content);
