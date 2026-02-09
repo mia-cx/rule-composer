@@ -9,7 +9,7 @@ alwaysApply: true
 1. Read the relevant files first. Confirm structure and APIs from source.
 2. State your plan concisely — what you'll change and why.
 3. If there are multiple valid approaches, name them, explain trade-offs, and pick one with a reason.
-4. **Copy/move files via CLI** — Use `cp`, `mv`, `rsync` instead of reading and rewriting file contents to preserve token budget.
+4. Always use available MCP tools.
 
 ## Dependabot / Security Branches
 
