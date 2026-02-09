@@ -1,6 +1,9 @@
 ---
 name: vitest-writer
-description: Writes Vitest unit tests for new logic, features, or implementations. Use proactively after adding code without tests, altering code with tests, or when the user asks for coverage.
+description: >-
+  Writes Vitest unit tests for new logic, features, or implementations. Use
+  proactively after adding code without tests, altering code with tests, or when
+  the user asks for coverage.
 ---
 
 # Vitest Writer

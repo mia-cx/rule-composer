@@ -1,6 +1,9 @@
 ---
 name: skill-author
-description: Expert at creating Agent Skills (SKILL.md). Use when the user wants to create, write or author a skill; or when a task requires turning a repeatable workflow into a skill. Use proactively for skill-creation tasks.
+description: >-
+  Expert at creating Agent Skills (SKILL.md). Use when the user wants to create,
+  write or author a skill; or when a task requires turning a repeatable workflow
+  into a skill. Use proactively for skill-creation tasks.
 ---
 
 # Skill Author

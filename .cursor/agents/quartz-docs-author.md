@@ -1,6 +1,9 @@
 ---
 name: quartz-docs-author
-description: Writes clear, concise, terse documentation for Quartz/Obsidian vaults. Use proactively when creating or editing docs in apps/docs/content/, authoring Obsidian notes for publication, or when the user asks for vault documentation.
+description: >-
+  Writes clear, concise, terse documentation for Quartz/Obsidian vaults. Use
+  proactively when creating or editing docs in apps/docs/content/, authoring
+  Obsidian notes for publication, or when the user asks for vault documentation.
 ---
 
 # Quartz Documenation Author

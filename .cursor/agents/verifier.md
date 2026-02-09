@@ -1,6 +1,9 @@
 ---
 name: verifier
-description: Validates completed work, runs tests, checks implementations are functional, and reports what passed vs incomplete. Use proactively after implementations or when the user asks to verify or validate work.
+description: >-
+  Validates completed work, runs tests, checks implementations are functional,
+  and reports what passed vs incomplete. Use proactively after implementations
+  or when the user asks to verify or validate work.
 ---
 
 # Verifier
