@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import matter from "gray-matter";
 import { extractProseDescription, buildRawContent } from "../index.js";
+import { splitByHeadings } from "../splitter.js";
+import { extractSectionMetadata } from "../../shared/formats.js";
+import { resolveHashToRelative } from "../../shared/link-resolution.js";
 
 describe("extractProseDescription", () => {
 	it("extracts first prose line as description", () => {
@@ -144,5 +147,40 @@ describe("buildRawContent", () => {
 
 		const noGlobs = buildRawContent(body, "", true, { alwaysApply: true });
 		expect(matter(noGlobs).data).not.toHaveProperty("globs");
+	});
+});
+
+describe("decompose link resolution", () => {
+	it("resolves hash links to relative filenames when building rule files", () => {
+		const input = [
+			"## Approach",
+			"",
+			"Plan first.",
+			"",
+			"## Rules and Skills",
+			"",
+			"See [Approach](#1-approach) and [Rules and Skills](#2-rules-and-skills).",
+		].join("\n");
+
+		const splits = splitByHeadings(input);
+		expect(splits.length).toBeGreaterThanOrEqual(2);
+
+		const numbered = true;
+		const ext = ".mdc";
+		const sectionMap = new Map<number, string>();
+		splits.forEach((split, i) => {
+			const prefix = numbered ? `${String(i + 1).padStart(2, "0")}-` : "";
+			sectionMap.set(i + 1, `${prefix}${split.name}${ext}`);
+		});
+
+		const rulesAndSkills = splits.find((s) => s.name === "rules-and-skills");
+		expect(rulesAndSkills).toBeDefined();
+
+		let cleanContent = extractSectionMetadata(rulesAndSkills!.content).content;
+		cleanContent = resolveHashToRelative(cleanContent, sectionMap);
+
+		expect(cleanContent).toContain("[Approach](./01-approach.mdc)");
+		expect(cleanContent).toContain("[Rules and Skills](./02-rules-and-skills.mdc)");
+		expect(cleanContent).not.toContain("#1-approach");
 	});
 });

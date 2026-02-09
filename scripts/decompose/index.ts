@@ -17,8 +17,9 @@ import {
 	ensureBlankLineAfterFrontmatter,
 	detectSourceTool,
 	replaceWithPlaceholders,
-	extractGlobAnnotation,
+	extractSectionMetadata,
 } from "../shared/formats.js";
+import { resolveHashToRelative } from "../shared/link-resolution.js";
 import type { ToolId, RuleFile } from "../shared/types.js";
 import type { LLMMessage } from "../shared/openrouter.js";
 
@@ -463,10 +464,20 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 	// 8. Convert splits to RuleFiles and write
 	const toolConfig = TOOL_REGISTRY[toolId];
 	const hasFrontmatter = toolConfig?.hasFrontmatter ?? false;
+	const ext = toolConfig?.extension || ".md";
+
+	// Build section number → output filename map for hash→relative link resolution
+	const sectionMap = new Map<number, string>();
+	splits.forEach((split, i) => {
+		const prefix = numbered ? `${String(i + 1).padStart(2, "0")}-` : "";
+		const filename = `${prefix}${split.name}${ext}`;
+		sectionMap.set(i + 1, filename);
+	});
 
 	const ruleFiles: RuleFile[] = splits.map((split) => {
-		const { content: cleanContent, globs, alwaysApply } = extractGlobAnnotation(split.content);
-		const description = extractProseDescription(cleanContent);
+		const { content: cleaned, description: metaDesc, globs, alwaysApply } = extractSectionMetadata(split.content);
+		const cleanContent = resolveHashToRelative(cleaned, sectionMap);
+		const description = metaDesc ?? extractProseDescription(cleanContent);
 		const rawContent = buildRawContent(cleanContent, description, hasFrontmatter, {
 			globs,
 			alwaysApply,
@@ -488,7 +499,6 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 	});
 
 	// 9. Check for existing files that would be overwritten
-	const ext = toolConfig?.extension || ".md";
 	const existingFiles: string[] = [];
 
 	for (let i = 0; i < ruleFiles.length; i++) {
