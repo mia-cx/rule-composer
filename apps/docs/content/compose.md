@@ -25,25 +25,19 @@ The optional `-o`/`--output` flag specifies where to write the result, skipping 
 
 ### 1. Detect Sources
 
-Scans the current working directory for rule files from all 10 supported tools. Also resolves the agents repo (local `rules/` and `skills/` directories, or bundled fallback).
+Scans the current working directory for rule files from all 10 supported tools. Also resolves the project’s local rules (local `rules/` and `skills/` directories, or bundled fallback).
 
-Each discovered source appears with a label like `Cursor (3 files)` or `agents-repo (local, 5 files)`.
-
-**Skipped** when a `[path]` argument is provided.
-
-### 2. Pick Sources
-
-Interactive checkbox list where you select which sources to include. By default all are selected.
+Each discovered source appears with a label like `Cursor (3 files)` or `rule-composer — local (5 files)`. The project name for the local/bundled source is taken from `package.json` `name` (with any scope stripped) or, if absent, the root directory name.
 
 **Skipped** when a `[path]` argument is provided.
 
-### 3. Select Rules (Tree Multiselect)
+### 2. Select Rules (Tree Multiselect)
 
-A custom tree prompt shows all discovered rules organized by source. You can expand/collapse sources and toggle individual rules:
+All detected sources (and the project’s local rules if present) are included; a custom tree prompt shows their rules organized by source. You expand/collapse sources and toggle individual rules:
 
 ```
 ◆ Select rules to include
-│ [x] ▼ agents-repo (local, 5 files)
+│ [x] ▼ rule-composer — local (5 files)
 │   [x] approach        General approach to tasks
 │   [x] coding-conventions   Use consistent patterns
 │   [x] rules-and-skills    Cursor rules and skills conventions
@@ -62,19 +56,19 @@ A custom tree prompt shows all discovered rules organized by source. You can exp
 | `a`                  | Toggle all                                                            |
 | `Enter`              | Confirm selection                                                     |
 
-### 3.5. Reorder Sections (Optional)
+### 2.5. Reorder Sections (Optional)
 
 When more than one rule is selected, the tool displays the current section order and asks if you want to reorder. If yes, enter a comma-separated list of new positions (e.g., `3,1,2,4`). The input is validated for correct count, valid indices, and no duplicates.
 
-### 4. Pick Target Tool
+### 3. Pick Target Tool
 
 Select which tool to resolve placeholders for. This determines how `{{RULES_DIR}}`, `{{TOOL_NAME}}`, etc. are replaced.
 
-### 4.5. Numbering Toggle
+### 3.5. Numbering Toggle
 
 Choose whether to add numbered prefixes to H2 section headings in the output (e.g., `## 1. Approach`, `## 2. Coding Conventions`). Defaults to yes. Section numbers are always sequential (1., 2., 3., …) by position in the composed document — any existing `N.` in a heading is stripped and replaced. So a rule file named `99-rule-name.mdc` with body `## 99. Rule Name` will appear as `## 5. Rule Name` if it is the 5th section. Only H2 headings are numbered — H3+ are left untouched.
 
-### 5. Compose
+### 4. Compose
 
 Rules are merged in **filename prefix order** (01-, 02-, …, 99-), so e.g. `99-rule-name.mdc` appears last. The pipeline then:
 
@@ -86,10 +80,11 @@ Rules are merged in **filename prefix order** (01-, 02-, …, 99-), so e.g. `99-
 6. Embed `> [!globs] patterns...` callouts after the first heading for scoped rules (`alwaysApply: false`). Rules with `alwaysApply: false` but no globs get an empty `> [!globs]` callout. Controlled by `embedGlobs` option (default `true`).
 7. Join sections with double newlines
 8. If numbering is enabled, assign sequential `1.`, `2.`, `3.`, … to all H2 headings via `addSectionNumbers()` (strips any existing `N.` from heading text)
+9. Resolve relative rule links to hash anchors: `[Rules](./06-rules-and-skills.mdc)` → `[Rules](#6-rules-and-skills)`. Only intra-document links (targets in the selected rules) are transformed. Controlled by `resolveLinks` option (default `true`).
 
 Output shows line count, token estimate, and placeholder count.
 
-### 6. Optional LLM Optimization
+### 5. Optional LLM Optimization
 
 If you choose to optimize, the composed document is sent to OpenRouter (Claude Sonnet by default) with a system prompt that instructs the LLM to:
 
@@ -99,7 +94,7 @@ If you choose to optimize, the composed document is sent to OpenRouter (Claude S
 
 A diff preview shows before/after with token savings. You can accept or reject the optimized version.
 
-### 7. Format and Write
+### 6. Format and Write
 
 All output is formatted with [Prettier](https://prettier.io) before writing. The formatter uses the nearest `.prettierrc` config (walking up from the output file path). If Prettier is unavailable, content is written as-is.
 
@@ -109,7 +104,7 @@ Formatting applies to:
 - Individual rule files in directory output
 - All `coding-tools/` variant files
 
-### 8. Pick Output Targets
+### 7. Pick Output Targets
 
 Choose where to write the composed document:
 
@@ -120,7 +115,7 @@ Choose where to write the composed document:
 
 **Skipped** when `--output`/`-o` is provided.
 
-### 9. Write + Regenerate Variants
+### 8. Write + Regenerate Variants
 
 Writes to all selected targets, then regenerates the `coding-tools/` directory with pre-processed variants for all tools.
 
@@ -133,9 +128,10 @@ The command ends with a one-line summary:
 
 ## Key Modules
 
-| Module        | File                          | Purpose                                                                                                                                                                                                      |
-| ------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Composer      | `scripts/compose/composer.ts` | `compose()` — merges rules, `incrementHeadings()` — bumps heading levels, `injectGlobAnnotation()` — embeds glob callouts, `addSectionNumbers()` — numbered headings, `estimateTokens()` — rough token count |
+| Module        | File                            | Purpose                                                                                                                                                                                                                       |
+| ------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composer      | `scripts/compose/composer.ts`   | `compose()` — merges rules, `incrementHeadings()` — bumps heading levels, `injectGlobAnnotation()` — embeds glob callouts, `addSectionNumbers()` — numbered headings, `estimateTokens()` — rough token count                   |
+| Link resolution | `scripts/shared/link-resolution.ts` | `resolveRelativeToHash()` — transforms `./NN-slug.ext` links to `#N-slug` hash anchors for composed single-file output                                                                              |
 | Variants      | `scripts/compose/variants.ts` | `generateVariants()` — produces `coding-tools/<tool>/` directories                                                                                                                                           |
 | System Prompt | `scripts/compose/prompt.md`   | Instructions for LLM optimization                                                                                                                                                                            |
 

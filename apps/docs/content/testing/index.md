@@ -6,7 +6,7 @@ modified: 2026-02-08
 
 # Testing
 
-174 tests across 12 files covering placeholder resolution, rule composition, markdown splitting, schema validation, tree data structures, filesystem scanning, variant generation, decompose helpers, heading reconstruction, sync, and end-to-end integration.
+230 tests across 15 files covering placeholder resolution, rule composition, markdown splitting, schema validation, tree data structures, filesystem scanning, variant generation, decompose helpers, heading reconstruction, sync, and end-to-end integration.
 
 ## Quick Reference
 
@@ -40,7 +40,7 @@ scripts/
       formats.test.ts         43 tests
       schemas.test.ts         16 tests
       tree-prompt.test.ts     10 tests
-      scanner.test.ts          8 tests   ← includes sortRulesByFilenamePrefix order test
+      scanner.test.ts          13 tests  ← sortRulesByFilenamePrefix, getProjectDisplayName, detectTools, resolveAgentsRepo
       integration.test.ts     12 tests   ← golden-file integration tests
       fixtures/                           ← test input and expected outputs
         input/AGENTS.md
@@ -58,7 +58,7 @@ scripts/
       matcher.test.ts        14 tests
   sync/
     __tests__/
-      sync.test.ts             3 tests
+      sync.test.ts            19 tests   ← findSyncSourceDirs, buildSyncSourceTree, layout, category list
       cursor-db.test.ts        8 tests
 ```
 
@@ -82,12 +82,12 @@ Detailed documentation for each test file:
 - [splitter.test.ts](testing/splitter) — Heading-based markdown splitting, heading number stripping (15 tests)
 - [schemas.test.ts](testing/schemas) — Zod schema validation for 4 schemas (16 tests)
 - [tree-prompt.test.ts](testing/tree-prompt) — Tree building and selection extraction (10 tests)
-- [scanner.test.ts](testing/scanner) — Tool detection, agents repo resolution, rule order by filename prefix (8 tests)
+- [scanner.test.ts](testing/scanner) — Tool detection, project-name label, agents repo resolution, rule order by filename prefix (13 tests)
 - [variants.test.ts](testing/variants) — `coding-tools/` directory generation (10 tests)
 - [decompose.test.ts](testing/decompose) — Prose extraction and frontmatter generation (13 tests)
 - [matcher.test.ts](testing/matcher) — Heading map parsing and content reconstruction (14 tests)
 - [integration.test.ts](testing/integration) — End-to-end pipeline tests with golden fixtures (12 tests)
-- sync.test.ts — Sync command (3 tests)
+- [sync.test.ts](testing/sync) — Sync layout detection, recursive source scan (findSyncSourceDirs), source tree, category list (19 tests). `runSync` source/direction prompts are interactive and not unit tested.
 - cursor-db.test.ts — Cursor DB helpers (8 tests)
 
 ## Patterns
@@ -172,4 +172,5 @@ Interactive/side-effect-heavy modules that are intentionally untested:
 | `openrouter.ts`                     | HTTP calls to OpenRouter API. Would require network mocking or a test API key.                            |
 | `compose/index.ts`                  | Orchestration — calls cli, composer, openrouter, formats, variants. Covered by unit tests of each module. |
 | `decompose/index.ts`                | Orchestration — calls cli, splitter, matcher, openrouter, formats. Covered by unit tests of each module.  |
+| `sync/index.ts` (`runSync`)         | Orchestration — source tree (repo vs coding-tools/X), layout prompt, direction, delete-stale, syncDir. Helpers unit tested. |
 | `index.ts`                          | Thin subcommand router.                                                                                   |

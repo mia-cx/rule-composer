@@ -71,33 +71,31 @@ Defaults to the tool's standard rules directory (e.g., `.cursor/rules/` for Curs
 
 **Skipped** when `--output`/`-o` is provided.
 
-### 8. Extract Glob Annotations and Generate Frontmatter
+### 8. Resolve Hash Links to Relative
 
-Each split section is checked for a `> [!globs]` callout (injected by compose). If found:
+Cross-references in the composed document use hash anchors (e.g. `[Rules](#6-rules-and-skills)`). Before writing each rule file, `resolveHashToRelative()` converts these to relative file links: `[Rules](./06-rules-and-skills.mdc)`. Section number N maps to the output filename for that section (e.g. `06-rules-and-skills.mdc` when numbered).
 
-- The glob patterns are extracted and the callout is removed from the body
-- `alwaysApply` is set to `false` and `globs` is included in frontmatter
-- `unquoteGlobs()` reverses the `quoteGlobs()` step so Cursor sees native unquoted `globs:` values
+### 9. Extract Section Metadata and Generate Frontmatter
 
-If no callout is found, `alwaysApply` defaults to `true`.
+`extractSectionMetadata()` reads optional inline metadata at the start of each split and strips it from the body:
 
-For tools that support frontmatter (currently only Cursor with `.mdc`):
+- **`> One-line summary.`** — Plain blockquote: used as frontmatter `description` (one or more lines, joined and truncated to 120 chars). Essential for subagents and skills that rely on `description`.
+- **`> [!globs] pattern`** — Callout: glob patterns and `alwaysApply: false` in frontmatter (same as composed output).
+- **`> [!alwaysApply] true` or `> [!alwaysApply] false`** — Callout: explicit `alwaysApply` in frontmatter.
 
-- **`alwaysApply`** — `false` if a `> [!globs]` callout was found, otherwise `true`
-- **`description`** is extracted from the first prose line of the section (truncated to 120 chars). If the section starts with a table or list, description is omitted.
-- **`globs`** — included when extracted from a `> [!globs]` callout
+If no blockquote description is present, description falls back to the first prose line (as before). If no `[!globs]` is found, `alwaysApply` defaults to `true`. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values.
 
-Tools without frontmatter support get plain markdown (glob annotations are still removed from the body).
+For tools that support frontmatter (currently only Cursor with `.mdc`), the extracted metadata is written as YAML frontmatter. Tools without frontmatter get plain markdown (metadata lines are still removed from the body).
 
-### 9. Format Output
+### 10. Format Output
 
 All output is formatted with [Prettier](https://prettier.io) before writing. The formatter resolves config from the nearest `.prettierrc` (walking up from the output directory). If Prettier is unavailable, content is written as-is.
 
-### 10. Overwrite Confirmation
+### 11. Overwrite Confirmation
 
 If any output files already exist (accounting for numbered prefixes when enabled), the tool lists them and asks for confirmation before overwriting.
 
-### 11. Write Files
+### 12. Write Files
 
 Files are written to the output directory with the correct extension. If numbered prefixes are enabled, files are named `01-name.ext`, `02-name.ext`, etc. If AI-assisted decomposition assigned a `directory` field, files are placed in subdirectories.
 
@@ -133,10 +131,11 @@ Uses OpenRouter API with a metadata-only response format for token efficiency:
 
 ## Key Modules
 
-| Module            | File                            | Purpose                                                                                                                  |
-| ----------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Splitter          | `scripts/decompose/splitter.ts` | `splitByHeadings()` — H2-boundary splitting, `stripHeadingNumber()` — removes `N. ` prefixes                             |
-| Matcher           | `scripts/decompose/matcher.ts`  | `parseHeadingMap()`, `reconstructFromHeadings()` — AI metadata → content                                                 |
-| Decompose helpers | `scripts/decompose/index.ts`    | `extractProseDescription()`, `buildRawContent()` — frontmatter generation (with glob/alwaysApply support)                |
-| Glob round-trip   | `scripts/shared/formats.ts`     | `extractGlobAnnotation()` — extracts `> [!globs]` callouts, `unquoteGlobs()` — reverses `quoteGlobs()` for Cursor output |
+| Module            | File                              | Purpose                                                                                                                             |
+| ----------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Splitter          | `scripts/decompose/splitter.ts`   | `splitByHeadings()` — H2-boundary splitting, `stripHeadingNumber()` — removes `N. ` prefixes                                        |
+| Matcher           | `scripts/decompose/matcher.ts`    | `parseHeadingMap()`, `reconstructFromHeadings()` — AI metadata → content                                                            |
+| Decompose helpers | `scripts/decompose/index.ts`      | `extractProseDescription()`, `buildRawContent()` — frontmatter generation (with glob/alwaysApply support)                           |
+| Link resolution   | `scripts/shared/link-resolution.ts` | `resolveHashToRelative()` — transforms `#N-slug` hash anchors to `./NN-slug.ext` relative links for decomposed modular output     |
+| Section metadata  | `scripts/shared/formats.ts`       | `extractSectionMetadata()` — extracts blockquote description, `> [!globs]`, `> [!alwaysApply]`; `unquoteGlobs()` — reverses `quoteGlobs()` for Cursor output |
 | System Prompt     | `scripts/decompose/prompt.md`   | Instructions for AI-assisted decomposition                                                                               |
