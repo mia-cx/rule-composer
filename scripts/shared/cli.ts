@@ -207,10 +207,12 @@ export const pickOutputTargets = async (detected: DiscoveredSource[], targetTool
 		hint: "file or directory (end with /)",
 	});
 
+	// Default to the target tool's directory when it has one (e.g. Cursor → .cursor/rules/), otherwise AGENTS.md
+	const defaultOption = targetConfig?.directories[0] ? `dir:${targetTool}` : "agents-md";
 	const selected = await p.multiselect({
 		message: "Write to:",
 		options,
-		initialValues: ["agents-md"],
+		initialValues: [defaultOption],
 		required: true,
 	});
 
