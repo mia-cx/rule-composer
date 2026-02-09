@@ -26,6 +26,8 @@ export default defineConfig([
 		rules: {
 			// Callouts (e.g. [!NOTE]) and task lists ([ ], [x]) are not link refs
 			"markdown/no-missing-label-refs": "off",
+			// Spaces inside emphasis markers; callouts like > [!globs] trigger false positives
+			"markdown/no-space-in-emphasis": "off",
 		},
 	},
 	...tseslint.configs.recommended.map((config) => ({
