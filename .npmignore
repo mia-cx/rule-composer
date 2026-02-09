@@ -1,0 +1,8 @@
+# Test suite and dev-only — not published (files allowlist already excludes these; this documents intent)
+**/__tests__/
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+vitest.config.*
+coverage/
