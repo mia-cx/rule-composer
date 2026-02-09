@@ -75,13 +75,55 @@ export const walkDir = async (
 	return sortRulesByFilenamePrefix(rules);
 };
 
-/** Scan a directory for rule files and return as a DiscoveredSource */
+/** Walk a flat directory of .md files (e.g. agents/, commands/) and return as RuleFile[] with the given type. */
+export const walkFlatMarkdownDir = async (
+	dir: string,
+	source: SourceId,
+	type: "agent" | "command",
+): Promise<RuleFile[]> => {
+	const results: RuleFile[] = [];
+	let entries: { name: string; isFile: () => boolean }[];
+	try {
+		entries = await readdir(dir, { withFileTypes: true });
+	} catch {
+		return results;
+	}
+	for (const entry of entries) {
+		if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+		const fullPath = join(dir, entry.name);
+		results.push(await readRule(fullPath, source, type));
+	}
+	return sortRulesByFilenamePrefix(results);
+};
+
+/** Scan a directory for rules, skills, agents, and commands (canonical layout) and return as a DiscoveredSource */
 export const scanDirectory = async (dir: string): Promise<DiscoveredSource> => {
-	const rules = await walkDir(dir, "agents-repo", "rule");
+	const all: RuleFile[] = [];
+	if (await exists(join(dir, "rules"))) {
+		all.push(...(await walkDir(join(dir, "rules"), "agents-repo", "rule")));
+	}
+	if (await exists(join(dir, "skills"))) {
+		all.push(...(await walkDir(join(dir, "skills"), "agents-repo", "skill")));
+	}
+	if (await exists(join(dir, "agents"))) {
+		all.push(...(await walkFlatMarkdownDir(join(dir, "agents"), "agents-repo", "agent")));
+	}
+	if (await exists(join(dir, "commands"))) {
+		all.push(...(await walkFlatMarkdownDir(join(dir, "commands"), "agents-repo", "command")));
+	}
+	// If no canonical subdirs, treat dir as rules dir (single dir of rule files)
+	if (all.length === 0) {
+		const rules = await walkDir(dir, "agents-repo", "rule");
+		return {
+			id: "agents-repo",
+			label: `${dir} (${rules.length} ${rules.length === 1 ? "file" : "files"})`,
+			rules,
+		};
+	}
 	return {
 		id: "agents-repo",
-		label: `${dir} (${rules.length} ${rules.length === 1 ? "file" : "files"})`,
-		rules,
+		label: `${dir} (${all.length} files)`,
+		rules: sortRulesByFilenamePrefix(all),
 	};
 };
 
@@ -157,18 +199,23 @@ export const getProjectDisplayName = async (rootPath: string): Promise<string> =
 export const resolveAgentsRepo = async (cwd: string): Promise<DiscoveredSource | null> => {
 	const rules: RuleFile[] = [];
 
-	// Tier 1: Local rules/ directory in CWD (e.g., running from the agents repo itself)
+	// Tier 1: Local rules/, skills/, agents/, commands/ in CWD
 	const localRulesDir = join(cwd, "rules");
 	const localSkillsDir = join(cwd, "skills");
+	const localAgentsDir = join(cwd, "agents");
+	const localCommandsDir = join(cwd, "commands");
 
 	if (await exists(localRulesDir)) {
-		const found = await walkDir(localRulesDir, "agents-repo", "rule");
-		rules.push(...found);
+		rules.push(...(await walkDir(localRulesDir, "agents-repo", "rule")));
 	}
-
 	if (await exists(localSkillsDir)) {
-		const found = await walkDir(localSkillsDir, "agents-repo", "skill");
-		rules.push(...found);
+		rules.push(...(await walkDir(localSkillsDir, "agents-repo", "skill")));
+	}
+	if (await exists(localAgentsDir)) {
+		rules.push(...(await walkFlatMarkdownDir(localAgentsDir, "agents-repo", "agent")));
+	}
+	if (await exists(localCommandsDir)) {
+		rules.push(...(await walkFlatMarkdownDir(localCommandsDir, "agents-repo", "command")));
 	}
 
 	// If we found local rules, use them
@@ -216,13 +263,21 @@ export const getBundledSource = async (): Promise<DiscoveredSource | null> => {
 
 	const bundledRulesDir = join(root, "rules");
 	const bundledSkillsDir = join(root, "skills");
+	const bundledAgentsDir = join(root, "agents");
+	const bundledCommandsDir = join(root, "commands");
 
 	const foundRules = await walkDir(bundledRulesDir, "bundled", "rule");
 	const foundSkills = (await exists(bundledSkillsDir))
 		? await walkDir(bundledSkillsDir, "bundled", "skill")
 		: [];
+	const foundAgents = (await exists(bundledAgentsDir))
+		? await walkFlatMarkdownDir(bundledAgentsDir, "bundled", "agent")
+		: [];
+	const foundCommands = (await exists(bundledCommandsDir))
+		? await walkFlatMarkdownDir(bundledCommandsDir, "bundled", "command")
+		: [];
 
-	const allFound = [...foundRules, ...foundSkills];
+	const allFound = [...foundRules, ...foundSkills, ...foundAgents, ...foundCommands];
 	if (allFound.length === 0) return null;
 
 	const projectName = await getProjectDisplayName(root);

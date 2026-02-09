@@ -3,7 +3,7 @@ import { stat, mkdir } from "node:fs/promises";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import { detectTools, getBundledSource, resolveAgentsRepo, scanDirectory } from "../shared/scanner.js";
-import { readRule } from "../shared/formats.js";
+import { readRule, inferRuleTypeFromPath } from "../shared/formats.js";
 import {
 	selectRules,
 	pickTargetTool,
@@ -57,8 +57,9 @@ export const runCompose = async (inputPath?: string, outputPath?: string): Promi
 			p.log.info(`Scanning ${inputPath}: ${source.rules.length} rules found`);
 			detected = [source];
 		} else {
-			const rule = await readRule(absPath, "agents-repo", "rule");
-			p.log.info(`Reading ${inputPath} as single rule`);
+			const fileType = inferRuleTypeFromPath(absPath);
+			const rule = await readRule(absPath, "agents-repo", fileType);
+			p.log.info(`Reading ${inputPath} as single ${fileType}`);
 			detected = [
 				{
 					id: "agents-repo",

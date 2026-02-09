@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { countTokens } from "gpt-tokenizer";
-import { compose, estimateTokens, addSectionNumbers, incrementHeadings, injectGlobAnnotation } from "../composer.js";
+import {
+	compose,
+	estimateTokens,
+	addSectionNumbers,
+	incrementHeadings,
+	injectGlobAnnotation,
+	injectTypeAnnotation,
+} from "../composer.js";
 import type { RuleFile } from "../../shared/types.js";
 
 const makeRule = (overrides: Partial<RuleFile> = {}): RuleFile => ({
@@ -239,6 +246,45 @@ describe("compose glob embedding", () => {
 
 		const { content } = await compose(rules, "cursor", { embedGlobs: false });
 		expect(content).not.toContain("[!globs]");
+	});
+});
+
+describe("injectTypeAnnotation", () => {
+	it("injects > [!type] after first heading for skill, agent, command", () => {
+		const body = "## My Skill\n\nContent.";
+		expect(injectTypeAnnotation(body, "skill")).toBe("## My Skill\n\n> [!type] skill\n\nContent.");
+		expect(injectTypeAnnotation(body, "agent")).toBe("## My Skill\n\n> [!type] agent\n\nContent.");
+		expect(injectTypeAnnotation(body, "command")).toBe("## My Skill\n\n> [!type] command\n\nContent.");
+	});
+
+	it("leaves body unchanged for type rule", () => {
+		const body = "## Rule\n\nContent.";
+		expect(injectTypeAnnotation(body, "rule")).toBe(body);
+	});
+});
+
+describe("compose type embedding", () => {
+	it("embeds > [!type] for skill/agent/command so decompose restores to correct dirs", async () => {
+		const rules = [
+			makeRule({ name: "approach", body: "## Approach\n\nPlan first.", rawContent: "## Approach\n\nPlan first." }),
+			makeRule({
+				name: "my-skill",
+				type: "skill",
+				body: "## My Skill\n\nSteps here.",
+				rawContent: "## My Skill\n\nSteps here.",
+			}),
+			makeRule({
+				name: "runner",
+				type: "agent",
+				body: "## Runner\n\nRuns tasks.",
+				rawContent: "## Runner\n\nRuns tasks.",
+			}),
+		];
+
+		const { content } = await compose(rules, "cursor");
+		expect(content).toContain("> [!type] skill");
+		expect(content).toContain("> [!type] agent");
+		expect(content).not.toContain("> [!type] rule");
 	});
 });
 

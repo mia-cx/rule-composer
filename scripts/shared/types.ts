@@ -45,8 +45,8 @@ export interface RuleFile {
 	rawContent: string;
 	/** Which source this was discovered from */
 	source: SourceId;
-	/** Whether the file is a rule or skill */
-	type: "rule" | "skill";
+	/** Kind of file: rule, skill (SKILL.md in skills/), agent (.md in agents/), command (.md in commands/) */
+	type: "rule" | "skill" | "agent" | "command";
 	/** Whether the file contains {{placeholders}} */
 	hasPlaceholders: boolean;
 	/** Optional subdirectory for grouping (used by decompose) */

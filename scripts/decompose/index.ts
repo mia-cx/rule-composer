@@ -1,5 +1,5 @@
-import { readFile, access, stat } from "node:fs/promises";
-import { join, resolve, basename } from "node:path";
+import { readFile, access, stat, readdir } from "node:fs/promises";
+import { join, resolve, basename, relative } from "node:path";
 import * as p from "@clack/prompts";
 import color from "picocolors";
 import matter from "gray-matter";
@@ -19,6 +19,9 @@ import {
 	detectSourceTool,
 	replaceWithPlaceholders,
 	extractSectionMetadata,
+	inferRuleTypeFromPath,
+	getOutputFilePathForRule,
+	getLayoutRootAndRulesDir,
 } from "../shared/formats.js";
 import { resolveHashToRelative } from "../shared/link-resolution.js";
 import type { ToolId, RuleFile } from "../shared/types.js";
@@ -45,6 +48,35 @@ const exists = async (path: string): Promise<boolean> => {
 	} catch {
 		return false;
 	}
+};
+
+/** List .md files in a directory; returns [] if dir does not exist. */
+const listMarkdownInDir = async (dir: string): Promise<Array<{ name: string; path: string }>> => {
+	try {
+		const entries = await readdir(dir, { withFileTypes: true });
+		const out: Array<{ name: string; path: string }> = [];
+		for (const e of entries) {
+			if (e.isFile() && e.name.endsWith(".md")) {
+				out.push({ name: e.name, path: join(dir, e.name) });
+			}
+		}
+		return out;
+	} catch {
+		return [];
+	}
+};
+
+/** Collect agent/command files from a root (agents/, commands/, .cursor/agents/, .cursor/commands/). */
+const listAgentsAndCommands = async (root: string): Promise<Array<{ name: string; path: string }>> => {
+	const out: Array<{ name: string; path: string }> = [];
+	for (const sub of ["agents", "commands", ".cursor/agents", ".cursor/commands"]) {
+		const dir = join(root, sub);
+		const files = await listMarkdownInDir(dir);
+		for (const f of files) {
+			out.push({ name: `${sub}/${f.name}`, path: f.path });
+		}
+	}
+	return out;
 };
 
 /** Check if a line looks like a table row or list item */
@@ -235,7 +267,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 		}
 
 		if (info.isDirectory()) {
-			// Look for known single-file rules in the directory
+			// Look for known single-file rules and agents/commands in the directory
 			const found: Array<{ name: string; path: string }> = [];
 			for (const file of SINGLE_FILE_RULES) {
 				const filePath = join(absPath, file);
@@ -243,10 +275,11 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 					found.push({ name: file, path: filePath });
 				}
 			}
+			found.push(...(await listAgentsAndCommands(absPath)));
 
 			if (found.length === 0) {
 				p.log.error(
-					`No known rule files found in ${cliInputPath}. Looked for: ${SINGLE_FILE_RULES.join(", ")}`,
+					`No rule files found in ${cliInputPath}. Looked for: ${SINGLE_FILE_RULES.join(", ")}, agents/*.md, commands/*.md`,
 				);
 				return;
 			}
@@ -273,7 +306,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 			inputName = basename(absPath);
 		}
 	} else {
-		// 1. Detect single-file rules in CWD and in bundled package
+		// 1. Detect single-file rules and agents/commands in CWD and in bundled package
 		const detected: Array<{ name: string; path: string }> = [];
 
 		for (const file of SINGLE_FILE_RULES) {
@@ -282,6 +315,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 				detected.push({ name: file, path: filePath });
 			}
 		}
+		detected.push(...(await listAgentsAndCommands(cwd)));
 
 		const bundledRoot = await getPackageRoot();
 		if (bundledRoot) {
@@ -291,11 +325,15 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 					detected.push({ name: `Bundled: ${file}`, path: filePath });
 				}
 			}
+			const bundledAc = await listAgentsAndCommands(bundledRoot);
+			for (const d of bundledAc) {
+				detected.push({ name: `Bundled: ${d.name}`, path: d.path });
+			}
 		}
 
 		if (detected.length === 0) {
-			p.log.warn("No single-file rules detected in the current directory or bundled package.");
-			p.log.info(`Looked for: ${SINGLE_FILE_RULES.join(", ")}`);
+			p.log.warn("No rule files detected in the current directory or bundled package.");
+			p.log.info(`Looked for: ${SINGLE_FILE_RULES.join(", ")}, agents/*.md, commands/*.md`);
 			return;
 		}
 
@@ -473,6 +511,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 	}
 
 	// 8. Convert splits to RuleFiles and write
+	const inputFileType = inferRuleTypeFromPath(inputPath);
 	const toolConfig = TOOL_REGISTRY[toolId];
 	const hasFrontmatter = toolConfig?.hasFrontmatter ?? false;
 	const ext = toolConfig?.extension || ".md";
@@ -486,13 +525,16 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 	});
 
 	const ruleFiles: RuleFile[] = splits.map((split) => {
-		const { content: cleaned, description: metaDesc, globs, alwaysApply } = extractSectionMetadata(split.content);
+		const { content: cleaned, description: metaDesc, globs, alwaysApply, type: sectionType } =
+			extractSectionMetadata(split.content);
 		const cleanContent = resolveHashToRelative(cleaned, sectionMap);
 		const description = metaDesc ?? extractProseDescription(cleanContent);
 		const rawContent = buildRawContent(cleanContent, description, hasFrontmatter, {
 			globs,
 			alwaysApply,
 		});
+		// Use > [!type] from composed monolith when present so skills/agents/commands restore to the right dirs
+		const ruleType = sectionType ?? inputFileType;
 
 		return {
 			path: "",
@@ -501,7 +543,7 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 			body: cleanContent,
 			rawContent,
 			source: toolId,
-			type: "rule" as const,
+			type: ruleType,
 			hasPlaceholders: /\{\{\w+\}\}/.test(cleanContent),
 			directory: split.directory,
 			globs,
@@ -509,19 +551,18 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 		};
 	});
 
-	// 9. Check for existing files that would be overwritten
+	// 9. Check for existing files that would be overwritten (canonical layout: rules/, skills/, agents/, commands/)
+	const { layoutRoot } = getLayoutRootAndRulesDir(outputDir);
 	const existingFiles: string[] = [];
-
-	for (let i = 0; i < ruleFiles.length; i++) {
-		const rule = ruleFiles[i]!;
-		const prefix = numbered ? `${String(i + 1).padStart(2, "0")}-` : "";
-		const targetDir = rule.directory ? join(outputDir, rule.directory) : outputDir;
-		const filePath = join(targetDir, `${prefix}${rule.name}${ext}`);
-		const displayPath = rule.directory
-			? `${rule.directory}/${prefix}${rule.name}${ext}`
-			: `${prefix}${rule.name}${ext}`;
+	let ruleIndex = 0;
+	for (const rule of ruleFiles) {
+		const filePath = getOutputFilePathForRule(rule, outputDir, toolId, {
+			numbered,
+			ruleIndex: rule.type === "rule" ? ruleIndex + 1 : undefined,
+		});
+		if (rule.type === "rule") ruleIndex += 1;
 		if (await exists(filePath)) {
-			existingFiles.push(displayPath);
+			existingFiles.push(relative(layoutRoot, filePath) || filePath);
 		}
 	}
 

@@ -37,6 +37,21 @@ export const injectGlobAnnotation = (body: string, globs?: string, alwaysApply?:
 	return `${annotation}\n\n${body}`;
 };
 
+/** Inject > [!type] skill|agent|command after the first heading so decompose restores to the right dirs */
+export const injectTypeAnnotation = (
+	body: string,
+	type: "rule" | "skill" | "agent" | "command",
+): string => {
+	if (type === "rule") return body;
+
+	const annotation = `> [!type] ${type}`;
+	const headingMatch = body.match(/^(#{1,6} .+)$/m);
+	if (headingMatch) {
+		return body.replace(headingMatch[0], `${headingMatch[0]}\n\n${annotation}`);
+	}
+	return `${annotation}\n\n${body}`;
+};
+
 /** Strip optional leading "N. " from heading text (e.g. "99. Rule Name" → "Rule Name"). */
 const stripHeadingNumber = (heading: string): string => heading.replace(/^\d+\.\s+/, "");
 
@@ -89,6 +104,8 @@ export const compose = async (
 		if (shouldEmbedGlobs) {
 			body = injectGlobAnnotation(body, rule.globs, rule.alwaysApply);
 		}
+
+		body = injectTypeAnnotation(body, rule.type);
 
 		sections.push(body);
 	}
