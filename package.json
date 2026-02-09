@@ -42,6 +42,8 @@
     "dist",
     "rules",
     "skills",
+    "agents",
+    "commands",
     "coding-tools",
     "scripts/compose/prompt.md",
     "scripts/decompose/prompt.md"
