@@ -116,10 +116,7 @@ describe("sync", () => {
 			const selected = list.filter((c) => selectedIds.includes(c.id));
 			expect(selected).toHaveLength(2);
 			expect(selected.map((c) => c.id)).toEqual(["skills", "agents"]);
-			expect(selected.map((c) => c.repoPath)).toEqual([
-				join(repoRoot, "skills"),
-				join(repoRoot, "agents"),
-			]);
+			expect(selected.map((c) => c.repoPath)).toEqual([join(repoRoot, "skills"), join(repoRoot, "agents")]);
 		});
 	});
 

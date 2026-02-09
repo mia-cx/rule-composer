@@ -383,7 +383,9 @@ describe("getLayoutRootAndRulesDir", () => {
 });
 
 describe("getOutputFilePathForRule", () => {
-	const makeRule = (overrides: Partial<{ name: string; type: "rule" | "skill" | "agent" | "command"; directory?: string }> = {}) => ({
+	const makeRule = (
+		overrides: Partial<{ name: string; type: "rule" | "skill" | "agent" | "command"; directory?: string }> = {},
+	) => ({
 		path: "",
 		name: "example",
 		description: "",
@@ -398,7 +400,9 @@ describe("getOutputFilePathForRule", () => {
 	it("returns rulesDir path for type rule (with optional numbered prefix)", () => {
 		const rule = makeRule({ type: "rule", name: "foo" });
 		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor")).toMatch(/\/rules\/foo\.mdc$/);
-		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor", { numbered: true, ruleIndex: 1 })).toMatch(/\/rules\/01-foo\.mdc$/);
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor", { numbered: true, ruleIndex: 1 })).toMatch(
+			/\/rules\/01-foo\.mdc$/,
+		);
 	});
 	it("returns layoutRoot/skills/name/SKILL.md for type skill", () => {
 		const rule = makeRule({ type: "skill", name: "my-skill" });

@@ -525,8 +525,13 @@ export const runDecompose = async (cliInputPath?: string, outputPath?: string): 
 	});
 
 	const ruleFiles: RuleFile[] = splits.map((split) => {
-		const { content: cleaned, description: metaDesc, globs, alwaysApply, type: sectionType } =
-			extractSectionMetadata(split.content);
+		const {
+			content: cleaned,
+			description: metaDesc,
+			globs,
+			alwaysApply,
+			type: sectionType,
+		} = extractSectionMetadata(split.content);
 		const cleanContent = resolveHashToRelative(cleaned, sectionMap);
 		const description = metaDesc ?? extractProseDescription(cleanContent);
 		const rawContent = buildRawContent(cleanContent, description, hasFrontmatter, {

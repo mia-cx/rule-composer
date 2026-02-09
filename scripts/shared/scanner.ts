@@ -34,11 +34,7 @@ const exists = async (path: string): Promise<boolean> => {
  * Recursively walk a directory, finding rule/skill files.
  * Skips directories starting with '_'.
  */
-export const walkDir = async (
-	dir: string,
-	source: SourceId,
-	type: "rule" | "skill",
-): Promise<RuleFile[]> => {
+export const walkDir = async (dir: string, source: SourceId, type: "rule" | "skill"): Promise<RuleFile[]> => {
 	const rules: RuleFile[] = [];
 
 	let entries;
@@ -267,9 +263,7 @@ export const getBundledSource = async (): Promise<DiscoveredSource | null> => {
 	const bundledCommandsDir = join(root, "commands");
 
 	const foundRules = await walkDir(bundledRulesDir, "bundled", "rule");
-	const foundSkills = (await exists(bundledSkillsDir))
-		? await walkDir(bundledSkillsDir, "bundled", "skill")
-		: [];
+	const foundSkills = (await exists(bundledSkillsDir)) ? await walkDir(bundledSkillsDir, "bundled", "skill") : [];
 	const foundAgents = (await exists(bundledAgentsDir))
 		? await walkFlatMarkdownDir(bundledAgentsDir, "bundled", "agent")
 		: [];

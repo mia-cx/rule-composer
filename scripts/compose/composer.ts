@@ -38,10 +38,7 @@ export const injectGlobAnnotation = (body: string, globs?: string, alwaysApply?:
 };
 
 /** Inject > [!type] skill|agent|command after the first heading so decompose restores to the right dirs */
-export const injectTypeAnnotation = (
-	body: string,
-	type: "rule" | "skill" | "agent" | "command",
-): string => {
+export const injectTypeAnnotation = (body: string, type: "rule" | "skill" | "agent" | "command"): string => {
 	if (type === "rule") return body;
 
 	const annotation = `> [!type] ${type}`;

@@ -266,7 +266,11 @@ describe("injectTypeAnnotation", () => {
 describe("compose type embedding", () => {
 	it("embeds > [!type] for skill/agent/command so decompose restores to correct dirs", async () => {
 		const rules = [
-			makeRule({ name: "approach", body: "## Approach\n\nPlan first.", rawContent: "## Approach\n\nPlan first." }),
+			makeRule({
+				name: "approach",
+				body: "## Approach\n\nPlan first.",
+				rawContent: "## Approach\n\nPlan first.",
+			}),
 			makeRule({
 				name: "my-skill",
 				type: "skill",

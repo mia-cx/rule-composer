@@ -40,6 +40,8 @@ For LLM features, pass your API key as an environment variable:
 OPENROUTER_API_KEY=sk-... pnpm dlx rule-composer compose
 ```
 
+> [!TODO] I have NOT tested the openrouter implementation (yet).
+
 ## Local Development
 
 If you're working on this repo directly:
@@ -101,12 +103,12 @@ pnpm sync diff
 | `pnpm sync` (push, pull, diff) | Sync rules/skills with global config          |
 | `pnpm build`                   | Build for distribution (tsup)                 |
 | `pnpm build-variants`          | Regenerate `coding-tools/` directories        |
-
-The published npm package only includes `dist/`, `rules/`, `skills/`, `coding-tools/`, and the compose/decompose prompt files (see `files` in package.json). The test suite and source `.ts` files are not published.
 | `pnpm test`                    | Run all tests                                 |
 | `pnpm test:watch`              | Run tests in watch mode                       |
 | `pnpm format`                  | Format codebase with Prettier                 |
 | `pnpm generate-fixtures`       | Regenerate golden test fixtures               |
+
+The published npm package only includes `dist/`, `rules/`, `skills/`, `coding-tools/`, and the compose/decompose prompt files (see `files` in package.json). The test suite and source `.ts` files are not published.
 
 ## Environment Variables
 
