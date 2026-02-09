@@ -22,8 +22,15 @@ Both subcommands accept an optional `[path]` argument (file or directory) that s
 
 ### Section ordering & numbering
 
-- **Compose**: Rules are composed in order of their filename prefix (01-, 02-, …, 99-), so e.g. `99-rule-name.mdc` appears last in the monolith. Section numbers in the output are always sequential (1., 2., 3., …) by position—`addSectionNumbers()` strips any existing `N.` from H2 text and assigns numbers by order, not from the filename. `compose()` increments all heading levels by one per-section (H1 → H2, H2 → H3, etc.) by default (`incrementHeadings` option, default `true`). Scoped rules get a `> [!globs] patterns...` callout after the first heading (`embedGlobs` option, default `true`). Users can reorder selected rules (step 3.5) and toggle numbered H2 prefixes (step 4.5).
-- **Decompose**: `extractGlobAnnotation()` detects `> [!globs]` callouts in split content and extracts the glob patterns and `alwaysApply: false` flag back into frontmatter via `buildRawContent()`. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values. `stripHeadingNumber()` removes `N. ` prefixes from H2 headings in both filename and content. `writeAsDirectory({ numbered: true })` prefixes filenames with zero-padded indices (`01-`, `02-`).
+- **Compose**: `compose()` increments all heading levels by one per-section (H1 → H2, H2 → H3, etc.) by default to avoid multiple H1s in the combined output (`incrementHeadings` option, default `true`). Scoped rules (`alwaysApply: false`) get a `> [!globs] patterns...` callout injected after the first heading (`embedGlobs` option, default `true`). Users can also reorder selected rules (step 3.5) and add numbered prefixes to H2 headings via `addSectionNumbers()` (step 4.5). Both are optional toggles.
+- **Decompose**: `extractSectionMetadata()` reads optional inline metadata at the start of each split: a plain blockquote for `description`, `> [!globs] pattern`, and `> [!alwaysApply] true|false`. These are stripped from the body and passed to `buildRawContent()`. If no blockquote description is present, description falls back to the first prose line. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values. `stripHeadingNumber()` removes `N. ` prefixes from H2 headings in both filename and content. `writeAsDirectory({ numbered: true })` prefixes filenames with zero-padded indices (`01-`, `02-`).
+
+### Link resolution
+
+- **Modular rules** use relative file links: `[Rules](./06-rules-and-skills.mdc)`.
+- **Composed output** uses hash anchors: `[Rules](#6-rules-and-skills)`.
+- **Compose**: `resolveRelativeToHash()` transforms `./NN-slug.ext` → `#N-slug` for intra-document links (section N = 1-based position). Controlled by `resolveLinks` option (default `true`).
+- **Decompose**: `resolveHashToRelative()` transforms `#N-slug` → `./NN-slug.ext` using the output filename map (section N → `NN-name.ext`).
 
 ### Data flow
 
@@ -33,7 +40,6 @@ Both subcommands accept an optional `[path]` argument (file or directory) that s
 
 - Keep interactive prompts in `cli.ts` or orchestration files, not in shared modules.
 - Call `formatMarkdown` at the orchestration layer, not inside `writeAsSingleFile` / `writeAsDirectory`.
-- Linting: ESLint (flat config in `eslint.config.js`). @eslint/markdown for `.md`/`.mdc`, typescript-eslint for `scripts/`. Run `pnpm lint`.
 
 ## 2. .mdc Frontmatter Conventions
 
@@ -59,6 +65,16 @@ Every `.mdc` rule file must have valid YAML frontmatter with these fields:
 - Glob values are always unquoted — quotes cause literal matching, not pattern matching
 - Multiple globs use comma-separated values, not YAML arrays — `[...]` syntax does not parse correctly
 - Glob patterns starting with `*` (e.g., `**/*.mdc`) are invalid YAML (`*` is a YAML alias character). Cursor handles them natively, but `gray-matter` will crash. The CLI pre-quotes these via `quoteGlobs()` before parsing.
+
+### Inline section metadata (monolith only)
+
+When authoring a monolithic AGENTS.md for later decompose, you can add optional metadata at the start of each H2 section so decomposed rules get correct frontmatter (important for subagents and skills that rely on `description`):
+
+- **description** — Plain blockquote: `> One-line summary.` (one or more lines; stripped and used as frontmatter `description`, max 120 chars).
+- **globs** — Callout: `> [!globs] pattern` (same as composed output).
+- **alwaysApply** — Callout: `> [!alwaysApply] true` or `> [!alwaysApply] false`.
+
+Decompose strips these lines from the body. Omit them for backward compatibility; description then falls back to the first prose line.
 
 ## 3. Tool Registry Pattern
 
@@ -114,7 +130,9 @@ If a line has mixed placeholders (one empty, one non-empty), the line is **still
 
 ### Available variables
 
-`TOOL_NAME`, `RULES_DIR`, `RULES_EXT`, `SKILLS_DIR`, `SKILLS_EXT`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`
+`TOOL_NAME`, `RULES_DIR`, `RULES_EXT`, `SKILLS_DIR`, `SKILLS_EXT`, `AGENTS_DIR`, `COMMANDS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `GLOBAL_AGENTS`, `GLOBAL_COMMANDS`, `RULE_EXAMPLE`
+
+Project-level dirs: `RULES_DIR`, `SKILLS_DIR`, `AGENTS_DIR`, `COMMANDS_DIR` (e.g. Cursor: `.cursor/rules/`, `.cursor/skills/`, `.cursor/agents/`, `.cursor/commands/`). Global dirs: `GLOBAL_*`. For tools without agents/commands, `AGENTS_DIR` and `COMMANDS_DIR` are empty and lines using them are removed when resolving.
 
 See `TOOL_VARIABLES` in `scripts/shared/formats.ts` for the full per-tool map.
 
@@ -156,7 +174,7 @@ In `decompose/index.ts`, step 5 (between section selection and output format):
 
 > [!globs] scripts/\*_/_.ts
 
-Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions. A **blank line between YAML frontmatter and body** is enforced by `ensureBlankLineAfterFrontmatter()` in `buildRawContent` (decompose) and `writeAsDirectory` (formats), so output always matches markdown convention and @eslint/markdown expectations.
+Generated files are formatted with Prettier before writing. Formatting happens at the **orchestration layer**, not in the write functions.
 
 ### Integration points
 
@@ -166,7 +184,7 @@ Generated files are formatted with Prettier before writing. Formatting happens a
 
 ### `formatMarkdown(content, filepath?)`
 
-Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest Prettier config (e.g. `prettier.config.js`) via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
+Exported from `scripts/shared/formats.ts`. Uses Prettier's Node API with dynamic import. Resolves config from the nearest `.prettierrc` via `prettier.resolveConfig(filepath)`. Returns content unchanged if Prettier is unavailable.
 
 ### Why not in write functions
 
@@ -217,7 +235,7 @@ The LLM never generates rule content. It only provides metadata.
 
 > [!globs] scripts/**/**tests**/**/\*.test.ts
 
-174 tests across 12 files. Vitest. ESM imports with `.js` extension.
+161 tests across 10 files. Vitest. ESM imports with `.js` extension.
 
 ### Patterns
 
@@ -232,7 +250,6 @@ The LLM never generates rule content. It only provides metadata.
 ### Do
 
 - One `describe` per export, one `it` per behavior.
-- Prefer one test with multiple cases (`it.each` or sequential assertions) over many trivially similar tests.
 - Consolidate trivially similar tests into one (parameterized or sequential assertions).
 - `variants.test.ts`: pass `format: false` as 5th arg to skip Prettier in tests.
 
@@ -251,17 +268,32 @@ The LLM never generates rule content. It only provides metadata.
 - Use GitHub-flavored markdown links (`[text](path)`) instead of wikilinks for cross-compatibility.
 - Frontmatter fields: `title`, `authors`, `created`, `modified`.
 
-## 10. Finding npm Packages
+## 10. Sync Command and Coding-Tools Layout
 
-When you need to find or choose npm packages (names, APIs, usage), use the registry search instead of web search. It is more token-efficient and returns package metadata directly.
+> [!globs] scripts/sync/** scripts/compose/variants.ts coding-tools/**
 
-**Do:**
+### Sync command
 
-- Run `pnpm search <term>` or `npm search <term>` to search the registry.
-- Use `pnpm info <pkg>` / `npm view <pkg>` for a specific package’s readme, versions, and exports.
+Use `pnpm sync push|pull|diff` (or `tsx scripts/index.ts sync`) to sync repo rules, skills, agents, and (for Cursor) commands with the active tool’s global config. Categories: **rules**, **skills**, **agents**, **commands** (Cursor only: `.cursor/commands/` ↔ `~/.cursor/commands/`). A tree prompt lets you pick the **source** (repo root or `coding-tools/<tool>/`); `--yes` uses repo root. All categories for the chosen source are synced. If the repo has a canonical layout (`rules/`, `skills/`, `agents/`, `commands/` at root), the CLI asks whether to use it; else it uses the tool’s schema (e.g. `.cursor/rules/` for Cursor). For push/pull you are asked: **“Do you want to delete stale items (items at the destination that are not present in the source)?”** Default no. `--yes` skips all confirmations (including delete-stale and layout prompt).
 
-**Don’t:**
+- **push** — repo → global
+- **pull** — global → repo
+- **diff** — show differences only (no writes)
 
-- Use web search as the first step for “npm package for X” or “how to use package Y on npm”.
+Options: `--repo <path>`, `--tool <id>`, `--yes` (skip confirmations, including delete-stale), `--cursor-db` (Cursor only, see below). Default tool is `cursor`; only tools with at least one of `GLOBAL_RULES`, `GLOBAL_SKILLS`, `GLOBAL_AGENTS`, or `GLOBAL_COMMANDS` in `TOOL_VARIABLES` are valid.
 
-**Reference:** [npm search](https://docs.npmjs.com/cli/v8/commands/npm-search) — search the registry; supports regex with a leading `/`.
+Implementation: `scripts/sync/index.ts` uses Node fs (`scripts/sync/sync-dir.ts`: recursive copy + optional delete-stale). Rules with `--cursor-db` use the cursor-db path (no syncDir). The `sync-agent-config` skill is a pointer to this CLI — do not duplicate sync instructions in the skill.
+
+#### Cursor User Rules (--cursor-db)
+
+Cursor’s **User Rules** (Settings → Rules for AI) are stored in SQLite, not in `~/.cursor/rules/`. Key: `aicontext.personalContext` in `ItemTable` of `state.vscdb` (paths: macOS `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, Linux `~/.config/Cursor/User/globalStorage/state.vscdb`, Windows `%APPDATA%\Cursor\User\globalStorage\state.vscdb`). With `--cursor-db`, sync **push** composes repo `rules/` into one blob and writes to the DB; **pull** reads from the DB and writes `rules/cursor-user-rules.md`; **diff** compares composed repo content to DB content. Implementation: `scripts/sync/cursor-db.ts` (better-sqlite3). Close Cursor before writing to the DB. **If rules don’t show in Settings:** run `pnpm sync inspect --cursor-db` to list ItemTable keys and confirm our key is present; in many Cursor versions User Rules are synced to the cloud and the Settings UI may not read the local DB, so local writes might not appear.
+
+### Coding-tools variant layout
+
+Generated output under `coding-tools/<toolId>/`:
+
+- **Rules**: `coding-tools/<toolId>/rules/` — one file per rule, tool-specific extension (e.g. `.mdc`, `.md`, `.instructions.md`).
+- **Skills**: `coding-tools/<toolId>/skills/<skill-name>/SKILL.md` — preserve directory structure; always `SKILL.md` (no tool-specific extension for skills).
+- **README**: `coding-tools/<toolId>/README.md` — instructs copying `rules/` and `skills/` into the project’s tool config.
+
+Do not flatten skills to `skill-name-SKILL.mdc`; keep the `skill-name/SKILL.md` layout per Cursor’s Agent Skills convention.

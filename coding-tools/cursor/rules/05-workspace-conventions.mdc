@@ -11,7 +11,7 @@ The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and pac
 
 ## Standard Monorepo Shape
 
-```
+```text
 apps/
   docs/          ← Always present. Quartz instance (Preact, not Svelte). Obsidian vault as content source.
   [app-name]/    ← SvelteKit apps by default.
@@ -47,4 +47,4 @@ When adding an app or package to an existing monorepo:
    - Quartz: `pnpx quartz create`
    - Cloudflare: `pnpm dlx wrangler init`
 4. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
-5. Fetch the relevant docs first (see [Reference Links](#reference-links)).
+5. Fetch the relevant docs first (see [Reference Links](./99-reference-links.mdc)).

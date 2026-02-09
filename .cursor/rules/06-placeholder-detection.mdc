@@ -10,7 +10,7 @@ globs: scripts/shared/formats.ts, scripts/decompose/index.ts
 
 ## How detection works
 
-`detectSourceTool(content)` checks only strong signal keys (`RULES_DIR`, `SKILLS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`) — never short/generic values. Scores each tool by total matched value length. Highest score wins.
+`detectSourceTool(content)` checks only strong signal keys (`RULES_DIR`, `SKILLS_DIR`, `AGENTS_DIR`, `COMMANDS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `GLOBAL_AGENTS`, `GLOBAL_COMMANDS`, `RULE_EXAMPLE`) — never short/generic values. Scores each tool by total matched value length. Highest score wins.
 
 ## How replacement works
 

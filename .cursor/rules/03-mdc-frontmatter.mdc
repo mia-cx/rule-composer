@@ -26,3 +26,5 @@ Every `.mdc` rule file must have valid YAML frontmatter with these fields:
 - Glob values are always unquoted — quotes cause literal matching, not pattern matching
 - Multiple globs use comma-separated values, not YAML arrays — `[...]` syntax does not parse correctly
 - Glob patterns starting with `*` (e.g., `**/*.mdc`) are invalid YAML (`*` is a YAML alias character). Cursor handles them natively, but `gray-matter` will crash. The CLI pre-quotes these via `quoteGlobs()` before parsing.
+
+**Monolith authoring:** When writing a single AGENTS.md for later decompose, you can add optional inline metadata at the start of each H2 section: a blockquote for `description` (`> One-line summary.`), `> [!globs] pattern`, and `> [!alwaysApply] true|false`. Decompose extracts these into frontmatter and strips them from the body. Essential for subagents and skills that rely on frontmatter `description`.

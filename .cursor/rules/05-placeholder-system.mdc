@@ -26,6 +26,8 @@ If a line has mixed placeholders (one empty, one non-empty), the line is **still
 
 ## Available variables
 
-`TOOL_NAME`, `RULES_DIR`, `RULES_EXT`, `SKILLS_DIR`, `SKILLS_EXT`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `RULE_EXAMPLE`
+`TOOL_NAME`, `RULES_DIR`, `RULES_EXT`, `SKILLS_DIR`, `SKILLS_EXT`, `AGENTS_DIR`, `COMMANDS_DIR`, `GLOBAL_RULES`, `GLOBAL_SKILLS`, `GLOBAL_AGENTS`, `GLOBAL_COMMANDS`, `RULE_EXAMPLE`
+
+Project-level: `RULES_DIR`, `SKILLS_DIR`, `AGENTS_DIR`, `COMMANDS_DIR`. Global: `GLOBAL_*`. For tools without agents/commands, `AGENTS_DIR` and `COMMANDS_DIR` are empty (lines using them are removed).
 
 See `TOOL_VARIABLES` in `scripts/shared/formats.ts` for the full per-tool map.

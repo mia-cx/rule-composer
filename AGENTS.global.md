@@ -10,25 +10,25 @@ Only move to Agent mode once the plan is agreed upon. For trivial single-file ch
 
 ## 3. Task Management
 
-**For every non-trivial task, create a todo list before starting.** The list MUST include task-specific items AND these four standing items. Each one MUST appear as an explicit todo — mark it complete with a note, or mark it N/A with a reason. Silently omitting any of them is a failure mode.
+**For every non-trivial task, create a todo list before starting.** The list MUST include task-specific items AND these four standing items. When working on a plan, include these in the plan's frontmatter. When working as an agent, use available todo tools. Each one MUST appear as an explicit todo — mark it complete with a note, or mark it N/A with a reason. Silently omitting any of them is a failure mode.
 
 1. **Tests** — Write or update tests for the work done. Mark complete only after tests pass.
-2. **Rules & skills** — Capture any new project knowledge as `.cursor/rules/` or `.cursor/skills/`. See [Rules and Skills](#rules-and-skills) for triggers.
+2. **Rules & skills** — Capture any new project knowledge as `.cursor/rules/` or `.cursor/skills/`. See [Rules and Skills](#6-rules-and-skills) for triggers.
 3. **Documentation** — Update relevant documentation if the change affects documented behavior, commands, or architecture.
-4. **Review & close** — Before marking the task complete, review your own work for: gaps in logic or edge cases, potential bugs, performance issues, adherence to conventions (see [Coding Conventions](#coding-conventions)), and opportunities to simplify. Then verify: tests pass, app builds, rules/skills captured, docs updated. Ask: "Did I capture new project knowledge as rules or skills?" If no and the task involved non-trivial decisions, go back and create them.
+4. **Review & close** — Before marking the task complete, review your own work for: gaps in logic or edge cases, potential bugs, performance issues, adherence to conventions (see [Coding Conventions](#9-coding-conventions)), and opportunities to simplify. Then verify: tests pass, app builds, rules/skills captured, docs updated. Ask: "Did I capture new project knowledge as rules or skills?" If no and the task involved non-trivial decisions, go back and create them.
 
 These four items are non-negotiable. They appear in every todo list, every time, regardless of task type. For items that genuinely do not apply (e.g., "Tests: N/A — no logic changed, documentation-only edit"), mark them N/A with a one-line justification visible in the todo list itself. The justification must be specific to the task, not generic.
 
-### Problem-Solving Protocol
+## 4. Problem-Solving Protocol
 
-#### Before Writing Code
+### Before Writing Code
 
 1. Read the relevant files first. Confirm structure and APIs from source.
 2. State your plan concisely — what you'll change and why.
 3. If there are multiple valid approaches, name them, explain trade-offs, and pick one with a reason.
 4. **Copy/move files via CLI** — Use `cp`, `mv`, `rsync` instead of reading and rewriting file contents to preserve token budget.
 
-#### Dependabot / Security Branches
+### Dependabot / Security Branches
 
 When working on a Dependabot or security-related branch:
 
@@ -37,13 +37,13 @@ When working on a Dependabot or security-related branch:
 3. Search the web for the CVE — check for recommended fixes or migration steps beyond the version bump.
 4. Verify the app builds and tests pass after the update.
 
-#### When Building Features
+### When Building Features
 
 1. Implement the minimal working version first.
 2. Verify it works (or ask the user to verify) before adding complexity.
 3. If you leave a TODO, flag it explicitly and address it before finishing.
 
-#### When Debugging & Error Recovery
+### When Debugging & Error Recovery
 
 1. **Reproduce first.** Confirm the actual error or behavior before proposing a fix.
 2. **Simple causes first.** Check for typos, wrong file paths, missing imports, stale caches, version mismatches before investigating complex causes.
@@ -55,7 +55,7 @@ When working on a Dependabot or security-related branch:
 8. **Tests break** — Run the failing test first to isolate the cause. Distinguish intentional behavior change from regression. Fix before moving on.
 9. **Build fails** — Check for missing imports, type errors, and circular dependencies first.
 
-#### Testing & Verification
+### Testing & Verification
 
 1. **Write tests alongside implementation.** Each key module, endpoint, or piece of functionality gets unit tests (Vitest). Test as you build, not after.
 2. **Tests must pass.** Run and confirm. A failing test is worse than no test.
@@ -67,7 +67,7 @@ The user works in **pnpm monorepos** orchestrated by **Turborepo**. Apps and pac
 
 ### Standard Monorepo Shape
 
-```
+```text
 apps/
   docs/          ← Always present. Quartz instance (Preact, not Svelte). Obsidian vault as content source.
   [app-name]/    ← SvelteKit apps by default.
@@ -103,9 +103,9 @@ When adding an app or package to an existing monorepo:
    - Quartz: `pnpx quartz create`
    - Cloudflare: `pnpm dlx wrangler init`
 4. For Cloudflare-targeted apps, suggest `wrangler` for initialization and deployment.
-5. Fetch the relevant docs first (see [Reference Links](#reference-links)).
+5. Fetch the relevant docs first (see [Reference Links](#12-reference-links)).
 
-### Rules and Skills
+## 5. Rules and Skills
 
 **CRITICAL — You MUST create rules and skills as you work.** Every conversation that touches architecture, debugging, or implementation MUST leave behind captured knowledge.
 
@@ -113,7 +113,7 @@ When adding an app or package to an existing monorepo:
 
 **Skills** (`.cursor/skills/*/SKILL.md`) — Repeatable multi-step workflows. Use `disable-model-invocation: true` for manual-only invocation.
 
-#### Mandatory triggers
+### Mandatory triggers
 
 Create a **rule** when you: make an architectural decision, discover a non-obvious gotcha, establish a repeatable pattern, or resolve a recurring bug.
 
@@ -121,7 +121,15 @@ Create a **skill** when you: complete a multi-step workflow the user will repeat
 
 **Promote to global when reusable.** If a rule or skill applies across projects, suggest moving it to `~/.cursor/rules/` or `~/.cursor/skills/`.
 
-### Technology Preferences
+## 6. Subagents and Skills
+
+**Subagents** (`.cursor/agents/`) — Specialized agents invoked for specific steps. When a plan or todo names a subagent (e.g. vitest-writer, quartz-docs-author, verifier), invoke that subagent when performing that step. The subagent’s `description` drives when the agent suggests it; use the named subagent rather than doing the step manually when the plan references it.
+
+**Skills** (`.cursor/skills/`) — Repeatable workflows. When implementing a plan, use skills referenced in the plan (e.g. vitest-writer for tests, quartz-docs-author for docs). Create or update a skill when the work produces a new multi-step workflow worth reusing.
+
+Keep this rule short; see [Rules and Skills](#6-rules-and-skills) for when to create rules vs skills and for global promotion.
+
+## 7. Technology Preferences
 
 **Frontend:** SvelteKit (Svelte 5, Vite) by default. shadcn-svelte + Bits-UI for components. TailwindCSS for styling. nanostores for global state. Svelte 5 runes (`$state`, `$derived`, `$effect`) for local state — no Svelte 4 stores. Exploring: Astro, React, Next.js.
 
@@ -129,7 +137,7 @@ Create a **skill** when you: complete a multi-step workflow the user will repeat
 
 **Tooling:** pnpm always. Turborepo for monorepo orchestration. tsup for building packages. TypeScript strict mode (`noUncheckedIndexedAccess: true`). Vitest for unit tests. Playwright for E2E (only after working user-facing flows exist).
 
-### Coding Conventions
+## 8. Coding Conventions
 
 - **Early returns** — Guard clauses first, reduce nesting.
 - **`const` arrow functions** — `const toggle = () => {}` over `function`. Define types.
@@ -143,7 +151,18 @@ Create a **skill** when you: complete a multi-step workflow the user will repeat
 - **Colors** — OKLCH color space for design tokens (e.g., `oklch(0.141 0.005 285.823)`). Not hex, not HSL.
 - **Theming** — `data-theme` attribute (`[data-theme='dark']`, `[data-theme='light']`, `[data-theme='auto']`), not CSS classes. Auto mode uses `prefers-color-scheme`.
 
-### Communication
+## 9. When generating commit messages
+
+Use **conventional commits**: `type(scope): subject`. Common types: `chore`, `feat`, `fix`, `docs`, `test`, `style`, `refactor`.
+
+- **Subject**: present tense, under ~72 characters, no period at the end (e.g. "add feature" not "added feature").
+- **Body**: (optional) add when the subject alone doesn’t explain why or what.
+
+When the user wants to **split uncommitted changes into multiple logical commits**, use the **organize-commits** skill: group by concern (config, formatting, feature, tests, docs), propose an ordered commit plan, then stage and commit per plan. That skill defines the concern → type mapping and full workflow.
+
+Cursor’s built-in **Generate commit message** (Git tab) respects project rules; consistent history improves its suggestions.
+
+## 10. Communication
 
 - Be concise. Assume the user has context on their own question.
 - Explain trade-offs when multiple approaches exist, then pick one unless the user should decide.
@@ -153,7 +172,7 @@ Create a **skill** when you: complete a multi-step workflow the user will repeat
 - State transitions explicitly. ("Component done. Moving to the route handler.")
 - Bookend long responses with a brief conclusion summarizing key points and next actions.
 
-### Reference Links
+## 11. Reference Links
 
 Fetch these directly instead of searching the web.
 
@@ -175,29 +194,3 @@ Fetch these directly instead of searching the web.
 - **Astro** — https://docs.astro.build/
 - **Next.js** — https://nextjs.org/docs
 - **GraphQL** — https://graphql.org/learn/
-
-## 4. Finding npm Packages
-
-When you need to find or choose npm packages (names, APIs, usage), use the registry search instead of web search. It is more token-efficient and returns package metadata directly.
-
-**Do:**
-
-- Run `pnpm search <term>` or `npm search <term>` to search the registry.
-- Use `pnpm info <pkg>` / `npm view <pkg>` for a specific package’s readme, versions, and exports.
-
-**Don’t:**
-
-- Use web search as the first step for “npm package for X” or “how to use package Y on npm”.
-
-**Reference:** [npm search](https://docs.npmjs.com/cli/v8/commands/npm-search) — search the registry; supports regex with a leading `/`.
-
-### ESLint and markdown
-
-Linting is done with **ESLint** (flat config in `eslint.config.js`):
-
-- **Markdown** (`.md`, `.mdc`): **@eslint/markdown** with `markdown/recommended`. Use `language: "markdown/commonmark"` so files are parsed as markdown, not JS. Rule `markdown/no-missing-label-refs` is off (callouts and task lists are not link refs).
-- **TypeScript** (`scripts/**/*.ts`): **typescript-eslint** recommended. Unused vars/args prefixed with `_` are ignored (`argsIgnorePattern`, `varsIgnorePattern`, `caughtErrorsIgnorePattern`).
-
-Run `pnpm lint`. Ignores: `node_modules`, `dist`, `apps/docs`, `.cursor`, `**/__tests__/fixtures`, backup dirs, `*.plan.md`.
-
-**Frontmatter and body:** A blank line between YAML frontmatter (closing `---`) and the first line of content is enforced by `ensureBlankLineAfterFrontmatter()` in `buildRawContent` and `writeAsDirectory` (markdown convention).
