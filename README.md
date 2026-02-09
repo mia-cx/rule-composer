@@ -26,13 +26,13 @@ pnpm dlx rule-composer sync [push|pull|diff] [--repo path] [--tool id] [--yes]
 
 The optional `[path]` argument lets you skip auto-detection:
 
-- **compose** — pass a directory of rule files (e.g., `.cursor/rules/`) or a single file
-- **decompose** — pass the file to split (e.g., `AGENTS.md`) or a directory to scan
+- **compose** — pass a directory of rule files (e.g., `.cursor/rules/`), or a single file (rule, skill, agent, or command). When the path is a directory, it is scanned for `rules/`, `skills/`, `agents/`, and `commands/`; when it is a file, the type is inferred from the path (e.g. `agents/foo.md` → agent).
+- **decompose** — pass the file to split (e.g., `AGENTS.md`, or a file under `agents/` or `commands/`), or a directory to scan. Detection includes known single-file rules and any `agents/*.md` and `commands/*.md` (including under `.cursor/`).
 
 The optional `-o`/`--output` flag skips the interactive output prompt:
 
-- **compose** — file path (e.g., `-o AGENTS.md`) or directory ending with `/` (e.g., `-o .cursor/rules/`)
-- **decompose** — output directory (e.g., `-o .cursor/rules/`)
+- **compose** — file path (e.g., `-o AGENTS.md`) or directory ending with `/` (e.g., `-o .cursor/rules/`). Directory output uses the same canonical layout as decompose (rules in `rules/`, skills in `skills/<name>/SKILL.md`, agents/commands in `agents/` and `commands/`).
+- **decompose** — output directory (e.g., `-o .cursor/rules/`). Written files use a **canonical layout**: rules in `rules/`, skills in `skills/<name>/SKILL.md`, agents in `agents/<name>.md`, commands in `commands/<name>.md` (relative to the layout root derived from the output path).
 
 For LLM features, pass your API key as an environment variable:
 

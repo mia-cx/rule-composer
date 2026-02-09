@@ -14,7 +14,10 @@ pnpm compose [path] [-o output]
 pnpm dev compose [path] [-o output]
 ```
 
-The optional `[path]` argument can be a directory of rule files or a single rule file. When provided, auto-detection and source picking are skipped — the given path is used directly.
+The optional `[path]` argument can be a directory or a single file. When provided, auto-detection and source picking are skipped.
+
+- **Directory** — Scanned for `rules/`, `skills/`, `agents/`, and `commands/`; all found files are used as the single source.
+- **Single file** — Read as one item. The type (rule, skill, agent, or command) is inferred from the path: e.g. `agents/foo.md` or `.cursor/agents/foo.md` → agent, `commands/run.md` → command, `skills/my-skill/SKILL.md` → skill; otherwise rule.
 
 The optional `-o`/`--output` flag specifies where to write the result, skipping the interactive "Write to" prompt:
 
@@ -81,9 +84,10 @@ Rules are merged in **filename prefix order** (01-, 02-, …, 99-), so e.g. `99-
 4. Lines with empty-value placeholders are removed entirely
 5. Increment all heading levels by one per-section (H1 → H2, H2 → H3, etc.) to avoid multiple H1s in the combined output. Controlled by `incrementHeadings` option (default `true`). H6 headings are left unchanged (cannot exceed H6).
 6. Embed `> [!globs] patterns...` callouts after the first heading for scoped rules (`alwaysApply: false`). Rules with `alwaysApply: false` but no globs get an empty `> [!globs]` callout. Controlled by `embedGlobs` option (default `true`).
-7. Join sections with double newlines
-8. If numbering is enabled, assign sequential `1.`, `2.`, `3.`, … to all H2 headings via `addSectionNumbers()` (strips any existing `N.` from heading text)
-9. Resolve relative rule links to hash anchors: `[Rules](./06-rules-and-skills.mdc)` → `[Rules](#6-rules-and-skills)`. Only intra-document links (targets in the selected rules) are transformed. Controlled by `resolveLinks` option (default `true`).
+7. Embed `> [!type] skill|agent|command` after the first heading for sections that came from a skill, agent, or command file (so that decomposing the monolith later restores them to `skills/`, `agents/`, or `commands/`). Rules (default type) get no type callout.
+8. Join sections with double newlines
+9. If numbering is enabled, assign sequential `1.`, `2.`, `3.`, … to all H2 headings via `addSectionNumbers()` (strips any existing `N.` from heading text)
+10. Resolve relative rule links to hash anchors: `[Rules](./06-rules-and-skills.mdc)` → `[Rules](#6-rules-and-skills)`. Only intra-document links (targets in the selected rules) are transformed. Controlled by `resolveLinks` option (default `true`).
 
 Output shows line count, token estimate, and placeholder count.
 
@@ -112,7 +116,7 @@ Formatting applies to:
 Choose where to write the composed document:
 
 - **Single file** — e.g., `AGENTS.md`, `CLAUDE.md`, `.cursorrules`
-- **Directory** — individual rule files in a tool's format (e.g., `.cursor/rules/`)
+- **Directory** — individual files in a tool's format using the **canonical layout**: rules in `rules/`, skills in `skills/<name>/SKILL.md`, agents in `agents/<name>.md`, commands in `commands/<name>.md` (layout root is derived from the output path, e.g. `.cursor/rules/` → root `.cursor/`).
 - **Other (specify path)** — enter a custom file or directory path (paths ending with `/` are treated as directories)
 - Multiple targets can be selected at once
 

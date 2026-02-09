@@ -22,12 +22,14 @@ The optional `-o`/`--output` flag specifies the output directory, skipping the i
 
 ### 1. Detect Input Files
 
-Scans CWD for known single-file rule files:
-`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `CONVENTIONS.md`, `.github/copilot-instructions.md`, `.junie/guidelines.md`
+Scans CWD for:
 
-Also looks for the same filenames in the **bundled** package root (the installed rule-composer package). Any found there appear in the pick list as e.g. `Bundled: AGENTS.md`, so you can decompose the package’s own composed file when running with `pnpm dlx` or from a project that has no local rule file.
+- **Single-file rule files:** `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `.cursorrules`, `.windsurfrules`, `.rules`, `CONVENTIONS.md`, `.github/copilot-instructions.md`, `.junie/guidelines.md`
+- **Agents and commands:** any `.md` files under `agents/`, `commands/`, `.cursor/agents/`, or `.cursor/commands/`
 
-**Skipped** when a file `[path]` argument is provided. When a directory is given, it scans that directory instead.
+Also looks for the same in the **bundled** package root. Those appear as e.g. `Bundled: AGENTS.md` or `Bundled: agents/foo.md`.
+
+**Skipped** when a file `[path]` argument is provided. When a directory is given, it scans that directory instead (same patterns).
 
 ### 2. Pick Input File
 
@@ -84,6 +86,7 @@ Cross-references in the composed document use hash anchors (e.g. `[Rules](#6-rul
 - **`> One-line summary.`** — Plain blockquote: used as frontmatter `description` (one or more lines, joined and truncated to 120 chars). Essential for subagents and skills that rely on `description`.
 - **`> [!globs] pattern`** — Callout: glob patterns and `alwaysApply: false` in frontmatter (same as composed output).
 - **`> [!alwaysApply] true` or `> [!alwaysApply] false`** — Callout: explicit `alwaysApply` in frontmatter.
+- **`> [!type] skill` | `> [!type] agent` | `> [!type] command`** — Callout: section type so the split is written to `skills/`, `agents/`, or `commands/` (see step 12). Emitted by compose when merging skill/agent/command files into a monolith; if present, overrides the input file’s type for that section.
 
 If no blockquote description is present, description falls back to the first prose line (as before). If no `[!globs]` is found, `alwaysApply` defaults to `true`. `unquoteGlobs()` reverses `quoteGlobs()` so Cursor sees native unquoted `globs:` values.
 
@@ -99,7 +102,14 @@ If any output files already exist (accounting for numbered prefixes when enabled
 
 ### 12. Write Files
 
-Files are written to the output directory with the correct extension. If numbered prefixes are enabled, files are named `01-name.ext`, `02-name.ext`, etc. If AI-assisted decomposition assigned a `directory` field, files are placed in subdirectories.
+Files are written using a **canonical layout** derived from the output directory:
+
+- **Rules** — in `rules/` (with optional numbered prefixes and optional `directory` subdirs from AI-assisted decomposition).
+- **Skills** — in `skills/<name>/SKILL.md` (when the input was a skill file).
+- **Agents** — in `agents/<name>.md` (when the input was an agent file).
+- **Commands** — in `commands/<name>.md` (when the input was a command file).
+
+When the output directory is a "rules" path (e.g. `.cursor/rules/`), the layout root is its parent (e.g. `.cursor/`), so agents and commands end up in `.cursor/agents/` and `.cursor/commands/`. Otherwise the output directory is the layout root and `rules/` is created under it.
 
 ## Split Strategies in Detail
 
