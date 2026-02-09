@@ -1,7 +1,28 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import * as p from "@clack/prompts";
+import { getPackageRoot } from "./shared/scanner.js";
 import type { ToolId } from "./shared/types.js";
 
-const VERSION = "0.1.0";
+const getCliIntro = async (): Promise<string> => {
+	const root = await getPackageRoot();
+	let name = "rule-composer";
+	let version = "0.0.0";
+	if (root) {
+		try {
+			const raw = await readFile(join(root, "package.json"), "utf-8");
+			const pkg = JSON.parse(raw) as { name?: string; version?: string };
+			if (typeof pkg.name === "string" && pkg.name.length > 0) {
+				const lastSlash = pkg.name.lastIndexOf("/");
+				name = lastSlash >= 0 ? pkg.name.slice(lastSlash + 1) : pkg.name;
+			}
+			if (typeof pkg.version === "string" && pkg.version.length > 0) version = pkg.version;
+		} catch {
+			// use fallbacks
+		}
+	}
+	return `${name} v${version}`;
+};
 
 const parseArgs = (
 	argv: string[],
@@ -57,7 +78,7 @@ const parseArgs = (
 const main = async (): Promise<void> => {
 	const { command, inputPath, output, syncDirection, repo, tool, yes, cursorDb } = parseArgs(process.argv);
 
-	p.intro(`rule-composer v${VERSION}`);
+	p.intro(await getCliIntro());
 
 	switch (command) {
 		case "compose": {
