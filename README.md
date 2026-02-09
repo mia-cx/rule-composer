@@ -8,7 +8,7 @@ Rules use `{{placeholders}}` like `{{RULES_DIR}}` and `{{TOOL_NAME}}` that resol
 
 ## Quick Start
 
-Run directly in any project without installing — scans for rules in the current directory:
+Run directly in any project without installing — scans for rules in the current directory. When you have no local rules (e.g. a fresh project), the package’s **bundled** rules are still available as a source so you can compose or decompose from them:
 
 ```bash
 # Interactive — pick compose or decompose
@@ -65,7 +65,7 @@ Linting uses ESLint (flat config): **@eslint/markdown** for Markdown and **types
 
 ### Compose
 
-Scans your project for rule files across all supported tools, lets you select which rules to include via an interactive tree prompt, resolves placeholders for your target tool, optionally optimizes via LLM, and writes the output.
+Scans your project for rule files across all supported tools (and the package’s **bundled** rules when present), lets you select which rules to include via an interactive tree prompt, resolves placeholders for your target tool, optionally optimizes via LLM, and writes the output.
 
 ```bash
 pnpm dlx rule-composer compose
@@ -73,7 +73,7 @@ pnpm dlx rule-composer compose
 
 ### Decompose
 
-Detects monolithic rule files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.), splits them into individual rules using heading-based or AI-assisted strategies, generates frontmatter where supported, and writes modular files.
+Detects monolithic rule files (`AGENTS.md`, `CLAUDE.md`, `.cursorrules`, etc.) in the current directory and in the **bundled** package; any found in the package appear as e.g. `Bundled: AGENTS.md`. Splits the chosen file into individual rules using heading-based or AI-assisted strategies, generates frontmatter where supported, and writes modular files.
 
 ```bash
 pnpm dlx rule-composer decompose
@@ -101,7 +101,9 @@ pnpm sync diff
 | `pnpm sync` (push, pull, diff) | Sync rules/skills with global config          |
 | `pnpm build`                   | Build for distribution (tsup)                 |
 | `pnpm build-variants`          | Regenerate `coding-tools/` directories        |
-| `pnpm test`                    | Run all 191 tests                             |
+
+The published npm package only includes `dist/`, `rules/`, `skills/`, `coding-tools/`, and the compose/decompose prompt files (see `files` in package.json). The test suite and source `.ts` files are not published.
+| `pnpm test`                    | Run all tests                                 |
 | `pnpm test:watch`              | Run tests in watch mode                       |
 | `pnpm format`                  | Format codebase with Prettier                 |
 | `pnpm generate-fixtures`       | Regenerate golden test fixtures               |
@@ -127,7 +129,7 @@ Full documentation is available in two places:
 - [Decompose Command](apps/docs/content/decompose.md)
 - [Sync Command](apps/docs/content/sync.md) — push/pull/diff rules and skills with global config
 - [Tool Registry](apps/docs/content/tool-registry.md) — supported tools, placeholders, variable maps, coding-tools layout
-- [Testing](apps/docs/content/testing/index.md) — 191-test suite across 10 files
+- [Testing](apps/docs/content/testing/index.md) — test suite across 15 files
 
 **Online** (deployed):
 
@@ -183,7 +185,8 @@ Potential integrations: import rules from these formats, export to them, or use 
 
 ### Agents Repo Resolution
 
-- [ ] Tier 2: GitHub fetch — pull rules from a remote agents repo when no local `rules/` directory exists (currently falls back directly to bundled)
+- [x] **Bundled source** — Compose and decompose include the package’s own `rules/` and `skills/` as a selectable source (useful for `pnpm dlx` when no local rules exist)
+- [ ] Tier 2: GitHub fetch — pull rules from a remote agents repo when no local `rules/` directory exists
 
 ## License
 
