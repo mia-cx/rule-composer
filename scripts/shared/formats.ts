@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join, basename, extname } from "node:path";
+import { join, basename, dirname, extname } from "node:path";
 import matter from "gray-matter";
 import type { ToolId, ToolConfig, RuleFile, SourceId } from "./types.js";
 import { TOOL_IDS } from "./types.js";
@@ -393,22 +393,33 @@ export const extractGlobAnnotation = (content: string): { content: string; globs
 
 const RE_GLOBS = /^> \[!globs\](?: (.+))?$/;
 const RE_ALWAYS_APPLY = /^> \[!alwaysApply]\s*(true|false)$/i;
+/** Matches > [!type] skill|agent|command so decomposed sections restore to the right dirs */
+const RE_TYPE = /^> \[!type]\s+(skill|agent|command)$/i;
 const RE_PLAIN_BLOCKQUOTE = /^> ?(.*)$/;
 
 /**
  * Extract inline section metadata from the start of content: plain blockquote (description),
- * > [!globs], and > [!alwaysApply]. Strips all consumed lines and returns cleaned content.
- * Used when decomposing a monolith so frontmatter (especially description) is reliable.
+ * > [!globs], > [!alwaysApply], and > [!type] skill|agent|command. Strips all consumed lines
+ * and returns cleaned content. Used when decomposing a monolith so frontmatter and section
+ * type (for skills/agents/commands dirs) are reliable.
  */
 export const extractSectionMetadata = (
 	content: string,
-): { content: string; description?: string; globs?: string; alwaysApply: boolean } => {
+): {
+	content: string;
+	description?: string;
+	globs?: string;
+	alwaysApply: boolean;
+	/** When present, section should be written to skills/agents/commands (from composed callout). */
+	type?: "skill" | "agent" | "command";
+} => {
 	const lines = content.split("\n");
 	const startIdx = lines[0]?.trim().match(/^## /) ? 1 : 0;
 
 	const descriptionParts: string[] = [];
 	let globs: string | undefined;
 	let alwaysApply = true;
+	let sectionType: "skill" | "agent" | "command" | undefined;
 	let bodyStart = startIdx;
 
 	for (let i = startIdx; i < lines.length; i++) {
@@ -431,6 +442,12 @@ export const extractSectionMetadata = (
 			bodyStart = i + 1;
 			continue;
 		}
+		const typeMatch = trimmed.match(RE_TYPE);
+		if (typeMatch) {
+			sectionType = typeMatch[1]!.toLowerCase() as "skill" | "agent" | "command";
+			bodyStart = i + 1;
+			continue;
+		}
 		const quoteMatch = trimmed.match(RE_PLAIN_BLOCKQUOTE);
 		if (quoteMatch) {
 			descriptionParts.push(quoteMatch[1]!.trim());
@@ -448,18 +465,30 @@ export const extractSectionMetadata = (
 	const body = lines.slice(bodyStart).join("\n");
 	const cleaned = (prefix ? `${prefix}\n\n${body}` : body).replace(/\n{3,}/g, "\n\n").trim();
 
-	return { content: cleaned, description, globs, alwaysApply };
+	return { content: cleaned, description, globs, alwaysApply, type: sectionType };
+};
+
+/** Infer rule/skill/agent/command from file path (e.g. .../agents/foo.md → "agent"). */
+export const inferRuleTypeFromPath = (filePath: string): "rule" | "skill" | "agent" | "command" => {
+	const normalized = filePath.replace(/\\/g, "/");
+	const base = normalized.split("/").pop() ?? "";
+	if ((normalized.includes("/skills/") || normalized.startsWith("skills/")) && base === "SKILL.md") return "skill";
+	if (normalized.includes("/agents/") || normalized.startsWith("agents/")) return "agent";
+	if (normalized.includes("/commands/") || normalized.startsWith("commands/")) return "command";
+	return "rule";
 };
 
 /** Parse any tool's rule file into a RuleFile */
 export const readRule = async (
 	filePath: string,
 	source: SourceId,
-	type: "rule" | "skill" = "rule",
+	type: "rule" | "skill" | "agent" | "command" = "rule",
 ): Promise<RuleFile> => {
 	const rawContent = await readFile(filePath, "utf-8");
 	const ext = extname(filePath);
-	const name = basename(filePath, ext).replace(/\.instructions$/, "");
+	const fileBaseName = basename(filePath, ext).replace(/\.instructions$/, "");
+	// Skills are identified by their parent directory (e.g. skills/organize-commits/SKILL.md → "organize-commits"), not the filename "SKILL"
+	const name = type === "skill" ? basename(dirname(filePath)) : fileBaseName;
 
 	let body: string;
 	let description = "";
@@ -532,7 +561,38 @@ export interface WriteDirectoryOptions {
 	numbered?: boolean;
 }
 
-/** Write rules as individual files in a tool's format */
+/**
+ * Derive layout root and rules dir from the chosen output directory.
+ * When dir is a "rules" dir (e.g. .cursor/rules/), layout root is its parent; else dir is the root.
+ */
+export const getLayoutRootAndRulesDir = (dir: string): { layoutRoot: string; rulesDir: string } => {
+	const normalized = dir.replace(/\/+$/, "");
+	if (normalized.endsWith("/rules") || normalized.endsWith("rules")) {
+		return { layoutRoot: dirname(normalized), rulesDir: normalized };
+	}
+	return { layoutRoot: normalized, rulesDir: join(normalized, "rules") };
+};
+
+/** Path where writeAsDirectory would write this rule (for overwrite checks). */
+export const getOutputFilePathForRule = (
+	rule: RuleFile,
+	dir: string,
+	toolId: ToolId,
+	opts?: { numbered?: boolean; ruleIndex?: number },
+): string => {
+	const config = TOOL_REGISTRY[toolId];
+	if (!config) return join(dir, `${rule.name}.md`);
+	const { layoutRoot, rulesDir } = getLayoutRootAndRulesDir(dir);
+	const ext = config.extension || ".md";
+	if (rule.type === "skill") return join(layoutRoot, "skills", rule.name, "SKILL.md");
+	if (rule.type === "agent") return join(layoutRoot, "agents", `${rule.name}.md`);
+	if (rule.type === "command") return join(layoutRoot, "commands", `${rule.name}.md`);
+	const prefix = opts?.numbered && opts.ruleIndex != null ? `${String(opts.ruleIndex).padStart(2, "0")}-` : "";
+	const targetDir = rule.directory ? join(rulesDir, rule.directory) : rulesDir;
+	return join(targetDir, `${prefix}${rule.name}${ext}`);
+};
+
+/** Write rules/skills/agents/commands to canonical layout: rules in rulesDir, skills in layoutRoot/skills/<name>/SKILL.md, agents/commands in layoutRoot/agents|commands/<name>.md */
 export const writeAsDirectory = async (
 	rules: RuleFile[],
 	dir: string,
@@ -542,25 +602,38 @@ export const writeAsDirectory = async (
 	const config = TOOL_REGISTRY[toolId];
 	if (!config) return;
 
-	await mkdir(dir, { recursive: true });
+	const { layoutRoot, rulesDir } = getLayoutRootAndRulesDir(dir);
+	await mkdir(rulesDir, { recursive: true });
 
-	for (let i = 0; i < rules.length; i++) {
-		const rule = rules[i]!;
-		const ext = config.extension || ".md";
-		const prefix = options?.numbered ? `${String(i + 1).padStart(2, "0")}-` : "";
-		const fileName = `${prefix}${rule.name}${ext}`;
-		const targetDir = rule.directory ? join(dir, rule.directory) : dir;
-
-		await mkdir(targetDir, { recursive: true });
-		const filePath = join(targetDir, fileName);
-
+	let ruleIndex = 0;
+	for (const rule of rules) {
+		let filePath: string;
 		let content: string;
+
 		if (config.hasFrontmatter) {
-			// Reconstruct with frontmatter, then unquote globs for Cursor
 			const parsed = matter(quoteGlobs(rule.rawContent));
 			content = ensureBlankLineAfterFrontmatter(unquoteGlobs(matter.stringify(rule.body, parsed.data)));
 		} else {
 			content = rule.body;
+		}
+
+		if (rule.type === "skill") {
+			filePath = join(layoutRoot, "skills", rule.name, "SKILL.md");
+			await mkdir(dirname(filePath), { recursive: true });
+		} else if (rule.type === "agent") {
+			filePath = join(layoutRoot, "agents", `${rule.name}.md`);
+			await mkdir(dirname(filePath), { recursive: true });
+		} else if (rule.type === "command") {
+			filePath = join(layoutRoot, "commands", `${rule.name}.md`);
+			await mkdir(dirname(filePath), { recursive: true });
+		} else {
+			ruleIndex += 1;
+			const ext = config.extension || ".md";
+			const prefix = options?.numbered ? `${String(ruleIndex).padStart(2, "0")}-` : "";
+			const fileName = `${prefix}${rule.name}${ext}`;
+			const targetDir = rule.directory ? join(rulesDir, rule.directory) : rulesDir;
+			await mkdir(targetDir, { recursive: true });
+			filePath = join(targetDir, fileName);
 		}
 
 		await writeFile(filePath, content, "utf-8");

@@ -13,6 +13,9 @@ import {
 	extractSectionMetadata,
 	unquoteGlobs,
 	ensureBlankLineAfterFrontmatter,
+	inferRuleTypeFromPath,
+	getOutputFilePathForRule,
+	getLayoutRootAndRulesDir,
 	TOOL_REGISTRY,
 	TOOL_VARIABLES,
 } from "../formats.js";
@@ -313,6 +316,17 @@ describe("readRule", () => {
 		const rule = await readRule(filePath, "cursor", "skill");
 		expect(rule.type).toBe("skill");
 	});
+
+	it("uses parent directory name for skills (not filename SKILL)", async () => {
+		const skillDir = join(tmpDir, "organize-commits");
+		await mkdir(skillDir, { recursive: true });
+		const filePath = join(skillDir, "SKILL.md");
+		await writeFile(filePath, "# Organize Commits\n\nWorkflow.", "utf-8");
+
+		const rule = await readRule(filePath, "cursor", "skill");
+		expect(rule.type).toBe("skill");
+		expect(rule.name).toBe("organize-commits");
+	});
 });
 
 describe("writeAsSingleFile", () => {
@@ -333,6 +347,70 @@ describe("writeAsSingleFile", () => {
 		const { readFile: rf } = await import("node:fs/promises");
 		const content = await rf(filePath, "utf-8");
 		expect(content).toBe("# Hello World");
+	});
+});
+
+describe("inferRuleTypeFromPath", () => {
+	it("returns skill for path containing /skills/ and basename SKILL.md", () => {
+		expect(inferRuleTypeFromPath("/repo/.cursor/skills/foo/SKILL.md")).toBe("skill");
+		expect(inferRuleTypeFromPath("C:\\repo\\.cursor\\skills\\bar\\SKILL.md")).toBe("skill");
+	});
+	it("returns agent for path containing /agents/", () => {
+		expect(inferRuleTypeFromPath("/repo/.cursor/agents/my-agent.md")).toBe("agent");
+		expect(inferRuleTypeFromPath("agents/foo.md")).toBe("agent");
+	});
+	it("returns command for path containing /commands/", () => {
+		expect(inferRuleTypeFromPath("/repo/.cursor/commands/run.md")).toBe("command");
+	});
+	it("returns rule for other paths", () => {
+		expect(inferRuleTypeFromPath("/repo/AGENTS.md")).toBe("rule");
+		expect(inferRuleTypeFromPath(".cursor/rules/foo.mdc")).toBe("rule");
+		expect(inferRuleTypeFromPath("/repo/skills/other.md")).toBe("rule"); // not SKILL.md
+	});
+});
+
+describe("getLayoutRootAndRulesDir", () => {
+	it("treats dir ending with /rules as rules dir and parent as layout root", () => {
+		const { layoutRoot, rulesDir } = getLayoutRootAndRulesDir("/home/proj/.cursor/rules");
+		expect(layoutRoot).toBe("/home/proj/.cursor");
+		expect(rulesDir).toBe("/home/proj/.cursor/rules");
+	});
+	it("treats plain dir as layout root and dir/rules as rules dir", () => {
+		const { layoutRoot, rulesDir } = getLayoutRootAndRulesDir("/home/proj/output");
+		expect(layoutRoot).toBe("/home/proj/output");
+		expect(rulesDir).toBe("/home/proj/output/rules");
+	});
+});
+
+describe("getOutputFilePathForRule", () => {
+	const makeRule = (overrides: Partial<{ name: string; type: "rule" | "skill" | "agent" | "command"; directory?: string }> = {}) => ({
+		path: "",
+		name: "example",
+		description: "",
+		body: "",
+		rawContent: "",
+		source: "cursor" as const,
+		type: "rule" as const,
+		hasPlaceholders: false,
+		...overrides,
+	});
+
+	it("returns rulesDir path for type rule (with optional numbered prefix)", () => {
+		const rule = makeRule({ type: "rule", name: "foo" });
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor")).toMatch(/\/rules\/foo\.mdc$/);
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor", { numbered: true, ruleIndex: 1 })).toMatch(/\/rules\/01-foo\.mdc$/);
+	});
+	it("returns layoutRoot/skills/name/SKILL.md for type skill", () => {
+		const rule = makeRule({ type: "skill", name: "my-skill" });
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor")).toBe("/.cursor/skills/my-skill/SKILL.md");
+	});
+	it("returns layoutRoot/agents/name.md for type agent", () => {
+		const rule = makeRule({ type: "agent", name: "my-agent" });
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor")).toBe("/.cursor/agents/my-agent.md");
+	});
+	it("returns layoutRoot/commands/name.md for type command", () => {
+		const rule = makeRule({ type: "command", name: "run" });
+		expect(getOutputFilePathForRule(rule, "/.cursor/rules", "cursor")).toBe("/.cursor/commands/run.md");
 	});
 });
 
@@ -365,7 +443,7 @@ describe("writeAsDirectory", () => {
 		await writeAsDirectory(rules, outDir, "claude");
 
 		const { readFile: rf } = await import("node:fs/promises");
-		const content = await rf(join(outDir, "coding.md"), "utf-8");
+		const content = await rf(join(outDir, "rules", "coding.md"), "utf-8");
 		expect(content).toBe("# Coding\n\nRules here.");
 	});
 
@@ -399,12 +477,12 @@ describe("writeAsDirectory", () => {
 
 		const { readFile: rf } = await import("node:fs/promises");
 
-		// Rule with directory should be in subdirectory
-		const subContent = await rf(join(outDir, "testing", "unit-tests.md"), "utf-8");
+		// Rule with directory should be in subdirectory under rules/
+		const subContent = await rf(join(outDir, "rules", "testing", "unit-tests.md"), "utf-8");
 		expect(subContent).toBe("# Unit Tests\n\nUse Vitest.");
 
-		// Rule without directory should be at root
-		const rootContent = await rf(join(outDir, "approach.md"), "utf-8");
+		// Rule without directory should be in rules/
+		const rootContent = await rf(join(outDir, "rules", "approach.md"), "utf-8");
 		expect(rootContent).toBe("# Approach\n\nPlan first.");
 	});
 
@@ -427,7 +505,7 @@ describe("writeAsDirectory", () => {
 		await writeAsDirectory(rules, outDir, "claude");
 
 		const { readFile: rf } = await import("node:fs/promises");
-		const content = await rf(join(outDir, "infrastructure", "deploy", "cloudflare.md"), "utf-8");
+		const content = await rf(join(outDir, "rules", "infrastructure", "deploy", "cloudflare.md"), "utf-8");
 		expect(content).toBe("# Cloudflare\n\nUse Wrangler.");
 	});
 
@@ -470,14 +548,14 @@ describe("writeAsDirectory", () => {
 
 		const { readFile: rf } = await import("node:fs/promises");
 
-		// Verify filenames have zero-padded prefixes
-		const f1 = await rf(join(outDir, "01-approach.md"), "utf-8");
+		// Verify filenames have zero-padded prefixes under rules/
+		const f1 = await rf(join(outDir, "rules", "01-approach.md"), "utf-8");
 		expect(f1).toBe("# Approach\n\nPlan first.");
 
-		const f2 = await rf(join(outDir, "02-coding.md"), "utf-8");
+		const f2 = await rf(join(outDir, "rules", "02-coding.md"), "utf-8");
 		expect(f2).toBe("# Coding\n\nEarly returns.");
 
-		const f3 = await rf(join(outDir, "03-testing.md"), "utf-8");
+		const f3 = await rf(join(outDir, "rules", "03-testing.md"), "utf-8");
 		expect(f3).toBe("# Testing\n\nUse Vitest.");
 	});
 
@@ -499,7 +577,7 @@ describe("writeAsDirectory", () => {
 		await writeAsDirectory(rules, outDir, "claude", { numbered: false });
 
 		const { readFile: rf } = await import("node:fs/promises");
-		const content = await rf(join(outDir, "approach.md"), "utf-8");
+		const content = await rf(join(outDir, "rules", "approach.md"), "utf-8");
 		expect(content).toBe("# Approach\n\nPlan first.");
 	});
 
@@ -522,7 +600,7 @@ describe("writeAsDirectory", () => {
 		await writeAsDirectory(rules, outDir, "claude", { numbered: true });
 
 		const { readFile: rf } = await import("node:fs/promises");
-		const content = await rf(join(outDir, "infra", "01-deploy.md"), "utf-8");
+		const content = await rf(join(outDir, "rules", "infra", "01-deploy.md"), "utf-8");
 		expect(content).toBe("# Deploy\n\nUse Wrangler.");
 	});
 });
@@ -614,6 +692,24 @@ describe("extractSectionMetadata", () => {
 		expect(r.globs).toBe("*.ts");
 		expect(r.alwaysApply).toBe(false);
 		expect(r.content).toBe("## Scoped\n\nBody.");
+	});
+
+	it("extracts > [!type] skill|agent|command and strips from content for decompose round-trip", () => {
+		const content = "## My Skill\n\n> [!type] skill\n\nDo things step by step.";
+		const r = extractSectionMetadata(content);
+		expect(r.type).toBe("skill");
+		expect(r.content).toBe("## My Skill\n\nDo things step by step.");
+		expect(r.content).not.toContain("[!type]");
+
+		const agentContent = "## Runner\n\n> [!type] agent\n\nRuns tasks.";
+		const a = extractSectionMetadata(agentContent);
+		expect(a.type).toBe("agent");
+		expect(a.content).not.toContain("[!type]");
+
+		const cmdContent = "## Build\n\n> [!type] command\n\nBuild command.";
+		const c = extractSectionMetadata(cmdContent);
+		expect(c.type).toBe("command");
+		expect(c.content).not.toContain("[!type]");
 	});
 });
 
