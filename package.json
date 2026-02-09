@@ -1,6 +1,6 @@
 {
   "name": "rule-composer",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Compose agent rules across coding tools.",
   "keywords": [
     "cursor",
